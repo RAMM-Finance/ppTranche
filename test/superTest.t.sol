@@ -7,6 +7,8 @@ import "../src/tranchemaster.sol";
 import "../src/tVault.sol";
 import "../src/vaults/tokens/ERC20.sol";
 import "../src/vaults/mixins/ERC4626.sol";
+import "../src/tLendingPoolFactory.sol"; 
+import "../src/compound/Comptroller.sol"; 
 import {SpotPool} from "../src/amm.sol"; 
 
 contract testVault is ERC4626{
@@ -54,14 +56,17 @@ contract TVaultTest is Test {
     testErc want; 
     TrancheMaster tmaster;
     uint256 constant precision = 1e18;  
-
+    tLendingPoolDeployer lendingPoolFactory; 
     function setUp() public {
         SplitterFactory splitterFactory = new SplitterFactory(); 
         TrancheAMMFactory ammFactory = new TrancheAMMFactory(); 
+        lendingPoolFactory = new tLendingPoolDeployer(); 
+
         tFactory = new TrancheFactory(
             address(this), 
             address(ammFactory), 
-            address(splitterFactory)
+            address(splitterFactory), 
+            address(lendingPoolFactory)
         ); 
 
         want = new testErc(); 
@@ -152,6 +157,10 @@ contract TVaultTest is Test {
             ERC20(senior).totalSupply()
             ); 
     }
+    function doGetPrice() public returns(uint256){
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+        return SpotPool(contracts.amm).getCurPrice(); 
+    }   
 
     function testMintingSplitting() public {
         //mintAndSplit(); 
@@ -216,7 +225,10 @@ contract TVaultTest is Test {
         uint vaultbal; 
 
         address senior; 
-        address junior; 
+        address junior;
+
+        uint ptv; 
+        uint ptvPrime;  
     }
 
     function testRedeemToDebtVault() public{
@@ -358,14 +370,81 @@ contract TVaultTest is Test {
         assertApproxEqAbs(seniorbalbefore, ERC20(vars.senior).balanceOf(address(this)), 10); 
         doPrintDorc(vars.pjs_); 
     }
+
+    function testArbitrageProfitHigherPriceSenior() public{
+        // arb cycle is higher price than pjs, mint/swap senior to junior, redeem it 
+        doLimit(); 
+        doApproval(); 
+        testVar memory vars; 
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+        (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+
+        // first let somebody buy up more than curprice (buy junior from senior)
+        bytes memory data; 
+        uint pricebefore =  SpotPool(contracts.amm).getCurPrice(); 
+        (uint amountIn, uint amountOut) = tmaster._swapFromTranche(true, -int256(precision/2), 0, 0, data); 
+        assertApproxEqAbs(amountOut, precision/2, 10);
+        (,, uint pjs) = Splitter(contracts.splitter).computeValuePrices(); 
+        assert(pricebefore < SpotPool(contracts.amm).getCurPrice() &&
+               SpotPool(contracts.amm).getCurPrice() > pjs); 
+        
+        // mint new pair, split it, and sell it to senior 
+        // doSetElaspedTime( 1); 
+        
+        (vars.psu, vars.pju, vars.pjs_) = Splitter(contracts.splitter).computeValuePrices();
+        // assert(psu >= pju); 
+        vars.ptv = tmaster.getPTV( vars.pjs_, true, Splitter(contracts.splitter).junior_weight()); 
+        vars.ptvPrime = tmaster.getPTV(doGetPrice(), true, Splitter(contracts.splitter).junior_weight());
+        assert(vars.ptv > vars.ptvPrime); 
+
+
+        // now junior is overpriced, so need to sell junior to senior and convert senior to debtvault, arbitraary price
+        vars.seniorBal = ERC20(senior).balanceOf(address(this));
+        // ok, so this is the vault used 
+        (vars.j, vars.s) = mintAndSplit(1); 
+
+        (amountIn, amountOut) = tmaster._swapFromTranche(false, int256(vars.j), 0, 0, data); 
+        assertApproxEqAbs(amountIn, vars.j, 10);
+        assertEq(vars.seniorBal + vars.s+ amountOut, ERC20(senior).balanceOf(address(this))); 
+        assert(amountOut + vars.s > precision); 
+        console.log('curprice,pjs', doGetPrice(), vars.pjs_); 
+        // now redeem senior
+        uint vaultAmount = tmaster.redeemToDebtVault(
+            vars.s+ amountOut, 
+            true, 0); 
+        assertEq(ERC20(senior).balanceOf(address(tmaster)), vars.s+ amountOut); 
+        assertEq(tmaster.getdVaultBal( 0, address(this), true, vars.pjs_), vaultAmount);
+        console.log('vaultOut, vaultIn', vaultAmount, precision); 
+        doPrintDorc(vars.pjs_);
+
+    }
+
+    // function simulateLongTermProfitAllJunior() public{
+    //     doLimit(); 
+    //     doApproval();
+    //     testVar memory vars; 
+    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+    //     (vars.junior, vars.senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+
+    //     // 0.3 j, 0.7 s, swap to all junior 
+    //     (vars.j, vars.s) = mintAndSplit(1); 
+    //     bytes memory data; 
+    //     (uint amountIn, uint amountOut) = tmaster._swapFromTranche(true, int256(vars.s), 0, 0, data); 
+    //     ERC20(vars.junior).balanceOf(address(this)); 
+
+    function testDeployNewLendingPool() public {
+        // address ad = lendingPoolFactory.deployNewPool(); 
+        // console.log(Comptroller(ad). mintAllowed(address(this), address(this), 0));  
+    }
+
+    // }
 //Tests todo:
-    //TODO do above with opposite, differing prices, differing elasped time, under different states
+    //TODO do above with opposite, differing prices, differing fixed rate,differing elasped time, under different states
     // oracles test, tvault test
     //function testSwapFromUnderlying
     //
    // function testArbitrageProfitWithVaryingElapsedTime() public {}
    // function testInitialLiquidityProvision() public {}
-   // function simulateLongTermProfit 
 //TODO more tests, tvault+oracle add, add tranchemaster, kaishi, 
 
 

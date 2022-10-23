@@ -9,8 +9,13 @@ import {FixedPointMathLib} from "./vaults/utils/FixedPointMathLib.sol";
 import {ERC20} from "./vaults/tokens/ERC20.sol";
 import {Splitter} from "./splitter.sol";
 import {tVault} from "./tVault.sol";
-
 import {SpotPool} from "./amm.sol"; 
+import {tLendingPoolDeployer} from "./tLendingPoolFactory.sol";
+import {CErc20} from "./compound/CErc20.sol"; 
+import {WhitePaperInterestRateModel} from "./compound/WhitePaperInterestRateModel.sol"; 
+import {Comptroller} from "./compound/Comptroller.sol"; 
+import {LeverageModule} from "./LeverageModule.sol"; 
+
 import "forge-std/console.sol";
 
 contract TrancheAMMFactory{
@@ -46,9 +51,13 @@ contract TrancheFactory{
     uint256 numVaults; 
     address owner; 
     address tMasterAd; 
+    uint id; 
 
+    tLendingPoolDeployer lendingPoolFactory; 
     TrancheAMMFactory ammFactory; 
     SplitterFactory splitterFactory; 
+    WhitePaperInterestRateModel interestRateModel; 
+
     /// @notice initialization parameters for the vault
     struct InitParams{
         address _want; 
@@ -65,7 +74,10 @@ contract TrancheFactory{
         address vault; 
         address splitter; 
         address amm; 
-        InitParams param; 
+        address lendingPool; 
+        address cSenior; 
+        address cJunior; 
+        InitParams param;
     }
 
     mapping(uint256=>Contracts) vaultContracts;
@@ -74,19 +86,29 @@ contract TrancheFactory{
     constructor(
         address _owner, 
         address ammFactory_address, 
-        address splitterFactory_address
+        address splitterFactory_address, 
+        address lendingPoolFactory_address
     ) public {
         owner = _owner;
         ammFactory = TrancheAMMFactory(ammFactory_address); 
         splitterFactory = SplitterFactory(splitterFactory_address); 
+        lendingPoolFactory = tLendingPoolDeployer(lendingPoolFactory_address); 
+
+        interestRateModel = new WhitePaperInterestRateModel(
+            1e18,1e18); 
     }
 
-    /// @notice called right after deployed 
-    function setTrancheMaster(address _tMasterAd) external {
-        require(msg.sender == owner); 
-        tMasterAd = _tMasterAd; 
-    }
 
+    /// @notice adds vaults, spllitters, and amms when tranche bids are filled 
+    /// Bidders have to specify the 
+    /// param want: underlying token for all the vaults e.g(usdc,eth)
+    /// param instruments: addresses of all vaults for the want they want exposure to
+    /// param ratios: how much they want to split between the instruments 
+    /// param junior weight: how much the juniors are allocated; lower means higher leverage for juniors but lower safety for seniors
+    /// param promisedReturn: how much fixed income seniors are getting paid primarily, 
+    /// param timetomaturity: when the tVault matures and tranche token holders can redeem their tranche for tVault 
+    /// @dev a bid is filled when liquidity provider agrees to provide initial liq for senior/junior or vice versa.  
+    /// so initial liq should be provided nonetheless 
     function createParams(
         address _want,
         address[] calldata _instruments,
@@ -109,16 +131,6 @@ contract TrancheFactory{
             );
     }
 
-    /// @notice adds vaults, spllitters, and amms when tranche bids are filled 
-    /// Bidders have to specify the 
-    /// param want: underlying token for all the vaults e.g(usdc,eth)
-    /// param instruments: addresses of all vaults for the want they want exposure to
-    /// param ratios: how much they want to split between the instruments 
-    /// param junior weight: how much the juniors are allocated; lower means higher leverage for juniors but lower safety for seniors
-    /// param promisedReturn: how much fixed income seniors are getting paid primarily, 
-    /// param timetomaturity: when the tVault matures and tranche token holders can redeem their tranche for tVault 
-    /// @dev a bid is filled when liquidity provider agrees to provide initial liq for senior/junior or vice versa.  
-    /// so initial liq should be provided nonetheless 
     function createVault(
         InitParams memory params, 
         string[] calldata names, 
@@ -130,8 +142,6 @@ contract TrancheFactory{
         id++ ; 
     }   
 
-
-    uint id; 
     function setupContracts(
         uint vaultId, 
         InitParams memory param) internal{
@@ -142,6 +152,9 @@ contract TrancheFactory{
         (address junior, address senior) = splitter.getTrancheTokens(); 
         SpotPool amm = ammFactory.newPool(senior, junior); 
 
+        // set cTokens
+        (address cSenior, address cJunior) = lendingPoolFactory.deployNewCTokens(); 
+
         // set initial price to 1 
         amm.setPriceAndPoint(splitter.precision()); 
 
@@ -149,9 +162,51 @@ contract TrancheFactory{
         contracts.vault = address(newvault); 
         contracts.splitter = address(splitter);
         contracts.amm = address(amm); 
+        contracts.lendingPool = lendingPoolFactory.deployNewPool(); 
         contracts.param = param;
+        contracts.cSenior = cSenior; 
+        contracts.cJunior = cJunior; 
+
+        setUpCTokens(cSenior, cJunior, address(newvault.want()), contracts.lendingPool );
     }
 
+    function setUpCTokens(
+        address cSenior, 
+        address cJunior, 
+        address underlying,
+        address comptroller) internal{
+        CErc20(cSenior).init_(
+            underlying,
+            comptroller, 
+            interestRateModel, 
+            1e18, 
+            "cSenior",
+            "cSenior",
+            18); 
+        Comptroller(comptroller)._supportMarket(CErc20(cSenior));
+        LeverageModule(cSenior).setTrancheMaster(tMasterAd, true); 
+
+        CErc20(cJunior).init_(
+            underlying,
+            comptroller, 
+            interestRateModel, 
+            1e18, 
+            "cJunior",
+            "cJunior",
+            18); 
+
+        Comptroller(comptroller)._supportMarket(CErc20(cJunior));
+        LeverageModule(cJunior).setTrancheMaster(tMasterAd, false); 
+
+        LeverageModule(cSenior).setPair(cJunior); 
+        LeverageModule(cJunior).setPair(cSenior); 
+    }
+
+    /// @notice called right after deployed 
+    function setTrancheMaster(address _tMasterAd) external {
+        require(msg.sender == owner); 
+        tMasterAd = _tMasterAd; 
+    }
     function getParams(uint256 vaultId) public returns(InitParams memory) {
         return vaultContracts[vaultId].param; 
     }
@@ -180,11 +235,12 @@ contract TrancheFactory{
     function getAmm(uint vaultId) external view returns(SpotPool){
         return SpotPool(vaultContracts[vaultId].amm); 
     }
-    //function getNumVaults
-    // function getVaultId(InitParams memory param) external view returns(uint){
-    //  return vaultIdMapping[param]; 
-    // }
-
+    function getCSenior(uint vaultId) external view returns(CErc20){
+        return CErc20(vaultContracts[vaultId].cSenior); 
+    }
+    function getCJunior(uint vaultId) external view returns(CErc20){
+        return CErc20(vaultContracts[vaultId].cJunior); 
+    }
 }
 
 
@@ -545,8 +601,20 @@ contract TrancheMaster{
         if(wantSenior) ERC20(vars.senior).transfer(msg.sender, poolamountOut + seniorAmount );
         else ERC20(vars.junior).transfer(msg.sender, poolamountOut + juniorAmount);  
   
+    }   
+
+    /// @notice people can lend their Junior/senior tokens to earn more yield,
+    /// where the lent out tokens will be used for leverage   
+    function supplyToLendingPool(uint256 vaultId, bool isSenior, uint256 amount) external {
+        // TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        // CErc20(contracts.cSenior).mint()
+
     }
 
+    function lendFromLendingPool(uint256 vaultId, bool isSenior, uint256 amount) external{
+        // if(isSenior) 
+        //     CErc20(contracts.cSenior).b(address payable borrower, uint borrowAmount)
+    }
 
     uint256 constant feeThreshold = 1e16; 
     uint256 constant kpi = 0; 
@@ -561,7 +629,7 @@ contract TrancheMaster{
     function swapFromInstrument() external {}
     function swapToRatio() external{}
 
-   /// @notice when a new tranche is initiated, and trader want senior or junior, can place bids/asks searching for
+    /// @notice when a new tranche is initiated, and trader want senior or junior, can place bids/asks searching for
     /// a counterparty
     function freshTrancheNewOrder() external{}
 
@@ -598,6 +666,15 @@ contract TrancheMaster{
                 juniorDebts[pjs].seniorDorc , 
                 seniorDebts[pjs].juniorDorc ,
                 seniorDebts[pjs].juniorDorc);
+    }
+
+    function getPTV(uint256 pjs, bool isSenior, uint256 junior_weight) public view returns(uint256 pTv){
+        uint256 multiplier = isSenior ? junior_weight.divWadDown(precision - junior_weight)
+                             : (precision - junior_weight).divWadDown(junior_weight);
+        uint256 totalAmount =  precision + multiplier.mulWadDown(precision); 
+        pTv = isSenior ? totalAmount.divWadDown(precision + precision.mulWadDown(multiplier).mulWadDown(pjs))
+                       : totalAmount.divWadDown(precision + precision.mulWadDown(multiplier).divWadDown(pjs)); 
+
     }
 
 }
