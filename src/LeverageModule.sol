@@ -27,6 +27,14 @@ contract CErc20Behalf is CErc20{
         // borrowFresh emits borrow-specific logs on errors, so we don't need to
         borrowFresh(payable(borrower), borrowAmount);
     }
+
+    function redeemInternalBehalf(address redeemer, uint redeemAmount) public
+    //nonReentrant
+    //onlyLeverage
+    {
+        accrueInterest(); 
+        redeemFresh(payable(redeemer), redeemAmount, 0);
+    }
 }
 
 /// @notice handles leverage trading for junior<->senior trades 
@@ -38,6 +46,10 @@ contract LeverageModule is CErc20Behalf{
     bool amISenior; 
     uint256 public constant precision = 1e18;  
 
+    constructor(){
+        //TODO vulnerabilities 
+        // CErc20(underlying).approve(address(this), type(uint256).max); 
+    }
     function setPair(address _pair) external{
         require(msg.sender == admin ); 
         pair = CErc20Behalf(_pair); 
@@ -49,6 +61,18 @@ contract LeverageModule is CErc20Behalf{
         amISenior = isSenior; 
     }
 
+    struct FlashVars{
+        bool isUnSwap; 
+        uint256 leverage; 
+        uint256 priceLimit;
+        uint256 vaultId; 
+        address sender; 
+        address amm; 
+
+        uint256 amountToSwap; 
+        uint256 amountIn;
+        uint256 amountOut; 
+    }
 
     /// @dev Receive a flash loan.
     /// @param initiator The initiator of the loan.
@@ -67,33 +91,64 @@ contract LeverageModule is CErc20Behalf{
         uint256 fee,
         bytes calldata data
     ) external returns (bytes32){
-        // amount to buy is borrowedamount + trader's fund 
-        uint256 amountToSwap = amount + amount.divWadDown(global_leverage - precision); 
+        FlashVars memory vars;
 
-        // Swap junior(senior)-> senior(junior)
-        CErc20(underlying).approve(address(master), amountToSwap); 
-        (uint256 amountIn, uint256 amountOut) = master._swapFromTranche(
-                !amISenior, int256(amountToSwap), global_priceLimit ,global_vaultId, data
-            ); 
+        (vars.isUnSwap, vars.leverage, vars.priceLimit, vars.vaultId, vars.sender, vars.amm)
+            = abi.decode(data, (bool, uint256, uint256, uint256, address, address)); 
 
-        // Option 1: supply senior(junior) and borrow on behalf
-        // trader need to have approved pair.underlying to pair token contract 
-        CErc20(pair.underlying()).transfer(global_trader, amountOut); 
-        pair.mintInternalBehalf(global_trader, amountOut); 
+        if(!vars.isUnSwap){
+            // amount to buy is borrowedamount + trader's fund 
+            vars.amountToSwap = amount + amount.divWadDown(vars.leverage - precision); 
 
-        // then borrow junior(senior) with senior(junior) as collateral, which
-        // will be burned by the flashMint function. Trader need to have approved 
-        // junior for amount to this 
-        borrowInternalBehalf(global_trader, amount); 
-        CErc20(underlying).transferFrom(global_trader, address(this), amount); 
+            // Swap junior(senior)-> senior(junior)
+            CErc20(underlying).approve(vars.amm, vars.amountToSwap); 
+            (vars.amountIn, vars.amountOut) = master._swapFromTranche(
+                    amISenior, int256(vars.amountToSwap), vars.priceLimit ,vars.vaultId, data
+                ); 
+
+            // Option 1: send senior(junior) to sender, supply senior(junior) and borrow on behalf
+            // trader need to have approved pair.underlying to pair token contract 
+            CErc20(pair.underlying()).transfer(vars.sender, vars.amountOut); 
+            pair.mintInternalBehalf(vars.sender, vars.amountOut); 
+
+            // then borrow junior(senior) with senior(junior) as collateral, which
+            // will be burned by the flashMint function. Trader need to have approved 
+            // junior for amount to this 
+            borrowInternalBehalf(vars.sender, amount); 
+            CErc20(underlying).transferFrom(vars.sender, address(this), amount); 
+
+            require(pair.balanceOfUnderlying(vars.sender) == vars.amountOut, "LeverageSwap Unsuccessful");
+            require(borrowBalanceStored(vars.sender) == amount, "Borrow Err"); 
+        }
+
+        else{
+            address pairUnderlying = pair.underlying(); 
+
+            // now have borrowed junior to this contract, repay onbehalf 
+            this.repayBorrowBehalf(vars.sender, amount);
+
+            // redeem senior(junior) submitted as collateral, need to have approved  
+            pair.redeemInternalBehalf(vars.sender, pair.balanceOf(vars.sender)); 
+
+            // Swap senior(junior)-> junior(senior), trader need to have approved 
+            // senior(junior) to this address 
+            uint256 amountToSwap = CErc20(pairUnderlying).balanceOf(vars.sender); 
+            CErc20(pairUnderlying).transferFrom(vars.sender, address(this), amountToSwap); 
+            CErc20(pairUnderlying).approve(vars.amm, vars.amountToSwap); 
+            (vars.amountIn, vars.amountOut) = master._swapFromTranche(
+                    !amISenior, int256(amountToSwap), vars.priceLimit ,vars.vaultId, data
+                ); 
+
+            //TODO what if swapped can't cover debt? Will revert 
+            require(pair.balanceOfUnderlying(vars.sender) == 0, "LeverageSwap Failed"); 
+            require(borrowBalanceStored(vars.sender) == 0, "Repay Err"); 
+        }
+
 
         return keccak256("ERC3156FlashBorrower.onFlashLoan"); 
+
     }
 
-    uint256 global_leverage;
-    uint256 global_priceLimit; 
-    address global_trader; 
-    uint256 global_vaultId; 
 
     /// @notice allows trader to leverage swap, junior to senior if this cToken is 
     /// junior, and vice versa
@@ -104,36 +159,47 @@ contract LeverageModule is CErc20Behalf{
         uint256 leverage,
         uint256 priceLimit, 
         uint256 vaultId,
-        bytes calldata data) external {
-        require(global_leverage == 0 && global_priceLimit ==0 
-         && global_trader == address(0) && global_vaultId == type(uint256).max, "err");
-
-        global_leverage = leverage; 
-        global_priceLimit = priceLimit; 
-        global_trader = msg.sender;
-        global_vaultId = vaultId; 
+        address amm, 
+        bytes calldata data) public {
 
         // Escrow
         CErc20(underlying).transferFrom(msg.sender,address(this), startAmount); 
         CErc20(underlying).approve(address(master), startAmount); 
 
         // need to (flash)mint excess junior and sell it to senior
-        bytes memory data; 
+        bytes memory data = abi.encode(false, leverage, priceLimit, vaultId, msg.sender, amm); 
         uint256 borrowAmount = leverage.mulWadDown(startAmount) - startAmount; 
 
         tToken(underlying).flashMint(
             IERC3156FlashBorrower(address(this)), 
             address(underlying), 
             borrowAmount, 
-            data); 
-
-        global_leverage = 0; 
-        global_priceLimit = 0; 
-        global_trader = address(0); 
-        global_vaultId = type(uint256).max; 
+            data
+        ); 
     }
 
-
-
-       
+    /// @notice allows trader to unwind their leverage swap position 
+    /// only closes position in full amount, todo partial 
+    function rewindFullLeverage(
+        uint256 priceLimit, 
+        uint256 vaultId, 
+        address amm
+        ) external{
+        // repay debt by flashminting junior(senior) 
+        bytes memory data = abi.encode(true, 0, priceLimit, vaultId,msg.sender, amm ); 
+        
+        uint256 balBefore = tToken(underlying).balanceOf(address(this)); 
+        tToken(underlying).flashMint(
+            IERC3156FlashBorrower(address(this)), 
+            address(underlying), 
+            borrowBalanceStored(msg.sender), 
+            data
+        ); 
+        // Pay remainder after repaying flash loan
+        tToken(underlying).transfer(
+            msg.sender, 
+            tToken(underlying).balanceOf(address(this)) - balBefore 
+        ); 
+    }
+ 
 }

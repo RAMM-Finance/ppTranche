@@ -566,6 +566,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
     function borrowFresh(address payable borrower, uint borrowAmount) internal {
         /* Fail if borrow not allowed */
         uint allowed = comptroller.borrowAllowed(address(this), borrower, borrowAmount);
+
         if (allowed != 0) {
             revert BorrowComptrollerRejection(allowed);
         }
@@ -608,6 +609,7 @@ abstract contract CToken is CTokenInterface, ExponentialNoError, TokenErrorRepor
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
         doTransferOut(borrower, borrowAmount);
+        console.log('transferring', borrowAmount); 
 
         /* We emit a Borrow event */
         emit Borrow(borrower, borrowAmount, accountBorrowsNew, totalBorrowsNew);

@@ -8,6 +8,7 @@ import "./ComptrollerInterface.sol";
 import "./ComptrollerStorage.sol";
 import "./Unitroller.sol";
 import "./Governance/Comp.sol";
+import "forge-std/console.sol";
 
 /**
  * @title Compound's Comptroller Contract
@@ -373,6 +374,7 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterface, ComptrollerE
         }
 
         (Error err, , uint shortfall) = getHypotheticalAccountLiquidityInternal(borrower, CToken(cToken), 0, borrowAmount);
+
         if (err != Error.NO_ERROR) {
             return uint(err);
         }
@@ -731,6 +733,7 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterface, ComptrollerE
 
         // For each asset the account is in
         CToken[] memory assets = accountAssets[account];
+
         for (uint i = 0; i < assets.length; i++) {
             CToken asset = assets[i];
 
@@ -1467,5 +1470,10 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterface, ComptrollerE
      */
     function getCompAddress() virtual public view returns (address) {
         return 0xc00e94Cb662C3520282E6f5717214004A7f26888;
+    }
+
+    function setAdmin(address newAdmin) external {
+        require(msg.sender == admin, "not admin"); 
+        admin = newAdmin; 
     }
 }

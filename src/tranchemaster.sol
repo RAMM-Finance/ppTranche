@@ -10,12 +10,15 @@ import {ERC20} from "./vaults/tokens/ERC20.sol";
 import {Splitter} from "./splitter.sol";
 import {tVault} from "./tVault.sol";
 import {SpotPool} from "./amm.sol"; 
+
 import {tLendingPoolDeployer} from "./tLendingPoolFactory.sol";
 import {CErc20} from "./compound/CErc20.sol"; 
+import {CToken} from "./compound/CToken.sol"; 
 import {WhitePaperInterestRateModel} from "./compound/WhitePaperInterestRateModel.sol"; 
 import {Comptroller} from "./compound/Comptroller.sol"; 
-import {LeverageModule} from "./LeverageModule.sol"; 
 
+import {LeverageModule} from "./LeverageModule.sol"; 
+import {PJSOracle} from "./jsOracle.sol"; 
 import "forge-std/console.sol";
 
 contract TrancheAMMFactory{
@@ -166,28 +169,35 @@ contract TrancheFactory{
         contracts.param = param;
         contracts.cSenior = cSenior; 
         contracts.cJunior = cJunior; 
+        //address(newvault.want())
 
-        setUpCTokens(cSenior, cJunior, address(newvault.want()), contracts.lendingPool );
+        PJSOracle newOracle = new PJSOracle(); 
+        setUpCTokens(cSenior, cJunior, senior, junior, contracts.lendingPool );
+        Comptroller(contracts.lendingPool)._setPriceOracle(newOracle); 
+        Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cSenior), 1e18*8/10) ;       
+        Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cJunior),  1e18*8/10);  
     }
 
     function setUpCTokens(
         address cSenior, 
         address cJunior, 
-        address underlying,
+        address senior,
+        address junior, 
         address comptroller) internal{
         CErc20(cSenior).init_(
-            underlying,
+            senior,
             comptroller, 
             interestRateModel, 
             1e18, 
             "cSenior",
             "cSenior",
             18); 
-        Comptroller(comptroller)._supportMarket(CErc20(cSenior));
+        require(Comptroller(comptroller)._supportMarket(CErc20(cSenior))
+                ==0, "NewMarketERR");
         LeverageModule(cSenior).setTrancheMaster(tMasterAd, true); 
-
+        // Comptroller(comptroller).markets(cToken).isListed
         CErc20(cJunior).init_(
-            underlying,
+            junior,
             comptroller, 
             interestRateModel, 
             1e18, 
@@ -195,13 +205,16 @@ contract TrancheFactory{
             "cJunior",
             18); 
 
-        Comptroller(comptroller)._supportMarket(CErc20(cJunior));
+        require(Comptroller(comptroller)._supportMarket(CErc20(cJunior))
+            == 0 , "NewMarketERR");
+
         LeverageModule(cJunior).setTrancheMaster(tMasterAd, false); 
 
         LeverageModule(cSenior).setPair(cJunior); 
         LeverageModule(cJunior).setPair(cSenior); 
     }
 
+  
     /// @notice called right after deployed 
     function setTrancheMaster(address _tMasterAd) external {
         require(msg.sender == owner); 
@@ -514,6 +527,7 @@ contract TrancheMaster{
         (vars.junior, vars.senior) = vars.splitter.getTrancheTokens();
 
         // Make a trade first so that price after the trade can be used
+        console.log(uint256(amount));
         (amountIn,  amountOut) =
             vars.amm.takerTrade(msg.sender, toJunior, amount, priceLimit, data);
 
@@ -603,18 +617,9 @@ contract TrancheMaster{
   
     }   
 
-    /// @notice people can lend their Junior/senior tokens to earn more yield,
-    /// where the lent out tokens will be used for leverage   
-    function supplyToLendingPool(uint256 vaultId, bool isSenior, uint256 amount) external {
-        // TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-        // CErc20(contracts.cSenior).mint()
-
-    }
-
-    function lendFromLendingPool(uint256 vaultId, bool isSenior, uint256 amount) external{
-        // if(isSenior) 
-        //     CErc20(contracts.cSenior).b(address payable borrower, uint borrowAmount)
-    }
+    function routeOptimalTrade() external{
+        
+    } 
 
     uint256 constant feeThreshold = 1e16; 
     uint256 constant kpi = 0; 

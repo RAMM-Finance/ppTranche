@@ -10,7 +10,7 @@ import "../src/vaults/mixins/ERC4626.sol";
 import "../src/tLendingPoolFactory.sol"; 
 import "../src/compound/Comptroller.sol"; 
 import {SpotPool} from "../src/amm.sol"; 
-
+import {LeverageModule} from "../src/LeverageModule.sol"; 
 contract testVault is ERC4626{
     constructor(ERC20 want)ERC4626( want,"a","a" ){
 
@@ -75,8 +75,14 @@ contract TVaultTest is Test {
         want.mint(address(this), precision*100000); 
         createVault(); 
 
-        mintAndSplit(10); 
+        mintAndSplit(20); 
 
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(0); 
+
+        stdstore
+            .target(contracts.amm)
+            .sig(SpotPool(contracts.amm).liquidity.selector)
+            .checked_write(uint128(0)); 
     }
 
     function createVault() public {
@@ -115,6 +121,21 @@ contract TVaultTest is Test {
         (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
         ERC20(junior).approve(contracts.amm, type(uint256).max); 
         SpotPool(contracts.amm).makerTrade( false, amountInToBid, 101); 
+    }
+    function doLimitSpecified(uint256 amountInToBid, bool limitBelow) public {
+        if(!limitBelow){
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+        (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+        ERC20(junior).approve(contracts.amm, type(uint256).max); 
+        SpotPool(contracts.amm).makerTrade( false, amountInToBid, 101); 
+        }
+        else{
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+        (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+        ERC20(senior).approve(contracts.amm, type(uint256).max); 
+        SpotPool(contracts.amm).makerTrade( true, amountInToBid, 99); 
+        }
+
     }
 
     function doApproval() public{
@@ -166,6 +187,29 @@ contract TVaultTest is Test {
         //mintAndSplit(); 
     }
 
+    struct testVar{
+
+        uint psu; 
+        uint pju; 
+        uint pjs_;
+        uint seniorBal;
+        uint j;
+        uint s; 
+
+        uint jdj; 
+        uint jds; 
+        uint sdj;
+        uint sds;
+
+        uint vaultbal; 
+
+        address senior; 
+        address junior;
+
+        uint ptv; 
+        uint ptvPrime;  
+    }
+
     function testPriceCompute() public {
 
         TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
@@ -206,29 +250,6 @@ contract TVaultTest is Test {
         // amountin is senior->junior so senior 
         if (up) assertApproxEqAbs(precision * 7/10, amountIn, 10); 
                 console.log('curprice', SpotPool(contracts.amm).getCurPrice()); 
-    }
-
-    struct testVar{
-
-        uint psu; 
-        uint pju; 
-        uint pjs_;
-        uint seniorBal;
-        uint j;
-        uint s; 
-
-        uint jdj; 
-        uint jds; 
-        uint sdj;
-        uint sds;
-
-        uint vaultbal; 
-
-        address senior; 
-        address junior;
-
-        uint ptv; 
-        uint ptvPrime;  
     }
 
     function testRedeemToDebtVault() public{
@@ -419,6 +440,47 @@ contract TVaultTest is Test {
 
     }
 
+    function testLeverageSwap() public{
+        createVault(); 
+        doLimitSpecified(2* precision, true); 
+        doApproval(); 
+        testVar memory vars; 
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+
+        uint startAmount = 1 * precision; 
+        uint leverage = 2*precision; 
+        uint priceLimit = precision*102/100;
+        bytes memory data; 
+
+        (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+        ERC20(junior).approve(contracts.cJunior, type(uint256).max); 
+        ERC20(senior).approve(contracts.cSenior, type(uint256).max); 
+
+        //Enter market
+        address[] memory ctokens = new address[](2); 
+        ctokens[0] = contracts.cJunior; 
+        ctokens[1] = contracts.cSenior; 
+
+        // supply to market 
+        LeverageModule(contracts.cJunior).mint((leverage-precision)*startAmount/precision  ); 
+        Comptroller(contracts.lendingPool).enterMarkets(ctokens); 
+        
+        uint balbefore = ERC20(junior).balanceOf(address(this)); 
+        LeverageModule(contracts.cJunior).swapWithLeverage(
+            startAmount, leverage, priceLimit, 0,contracts.amm, data); 
+        assertEq(balbefore - ERC20(junior).balanceOf(address(this)) , startAmount); 
+    }
+    // function testOracle()public{}
+
+    // function testStableCoin() public{}//need to withstand huge influx of liquidity and contractions 
+    // function testCounterPartyProfitSplit() public{}
+    // function testPerpLikeTrading() public {}
+    // function testProfitForJuniorLongTermEquation(){}
+    // function testProgrssionOverTime() public{}
+    // function testExpansion() public{}
+    // function testStablecoinArb() public{}
+    
+
     // function simulateLongTermProfitAllJunior() public{
     //     doLimit(); 
     //     doApproval();
@@ -447,7 +509,7 @@ contract TVaultTest is Test {
    // function testInitialLiquidityProvision() public {}
 //TODO more tests, tvault+oracle add, add tranchemaster, kaishi, 
 
-
+    //
 
     
 }
