@@ -17,10 +17,10 @@ import {PJSOracle} from "./jsOracle.sol";
 /// @notice contract that stores the contracts and liquidity for each tranches 
 contract TrancheFactory{
 
-    uint256 numVaults; 
+    uint256 public numVaults; 
     address owner; 
     address tMasterAd; 
-    uint id; 
+    uint public id; 
 
     tLendingPoolDeployer lendingPoolFactory; 
     TrancheAMMFactory ammFactory; 
@@ -186,7 +186,7 @@ contract TrancheFactory{
         require(msg.sender == owner); 
         tMasterAd = _tMasterAd; 
     }
-    function getParams(uint256 vaultId) public returns(InitParams memory) {
+    function getParams(uint256 vaultId) public view returns(InitParams memory) {
         return vaultContracts[vaultId].param; 
     }
     /// @notice lp token balance is stored in this contract

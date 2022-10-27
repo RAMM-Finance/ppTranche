@@ -12,3 +12,5 @@ out/
 /typechain-types
 typechain-types
 .typechain-types
+artifacts 
+node_modules

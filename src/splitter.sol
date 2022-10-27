@@ -35,6 +35,7 @@ contract Splitter{
   /// as specified during construction default is hours and compounded hourly. 
   /// @dev in discrete representations, so 1 means 1 hour 
   uint256 public elapsedTime; 
+  uint256 public lastRecordTime; 
   uint256 inceptionPrice; 
   bool delayedOracle;
   uint256 public constant pastNBlock = 10; 
@@ -70,12 +71,14 @@ contract Splitter{
     underlying.approve(trancheMasterAd, type(uint256).max); 
     senior.approve(trancheMasterAd, type(uint256).max); 
     junior.approve(trancheMasterAd, type(uint256).max); 
-  }
+  } 
 
   /// @notice computes current value of senior/junior denominated in underlying 
   /// which is the value that one would currently get by redeeming one senior token
-  function computeValuePrices() public view returns(uint256 psu, uint256 pju, uint256 pjs){
-    // underlying.storeExchangeRate(); 
+  function computeValuePrices() public  returns(uint256 psu, uint256 pju, uint256 pjs){
+    underlying.storeExchangeRate(); 
+    elapsedTime += (block.timestamp - lastRecordTime);
+    lastRecordTime = block.timestamp; 
 
     // Get senior redemption price that increments per unit time as usual 
     uint256 srpPlusOne = inceptionPrice.mulWadDown(promised_return.rpow(elapsedTime, precision));
@@ -179,7 +182,7 @@ contract Splitter{
     (internalPsu, internalPju, internalPjs) = computeValuePrices(); 
   }
 
-  function getStoredValuePrices() public returns(uint256,uint256, uint256){
+  function getStoredValuePrices() public view returns(uint256,uint256, uint256){
     return (internalPsu, internalPju, internalPjs); 
   }
 }
