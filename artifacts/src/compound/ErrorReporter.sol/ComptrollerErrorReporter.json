@@ -1,0 +1,36 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ComptrollerErrorReporter",
+  "sourceName": "src/compound/ErrorReporter.sol",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "error",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "info",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "detail",
+          "type": "uint256"
+        }
+      ],
+      "name": "Failure",
+      "type": "event"
+    }
+  ],
+  "bytecode": "0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea264697066735822122014a039d8f1645fbdb76ce7c890432680ef5481c64ff8bae4751bab8e9a3f643b64736f6c634300080a0033",
+  "deployedBytecode": "0x6080604052600080fdfea264697066735822122014a039d8f1645fbdb76ce7c890432680ef5481c64ff8bae4751bab8e9a3f643b64736f6c634300080a0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

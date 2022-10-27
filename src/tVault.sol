@@ -1,5 +1,4 @@
-pragma solidity ^0.8.4;
-import {Auth} from "./vaults/auth/Auth.sol";
+pragma solidity ^0.8.9;
 import {ERC4626} from "./vaults/mixins/ERC4626.sol";
 
 import {SafeCastLib} from "./vaults/utils/SafeCastLib.sol";
@@ -7,7 +6,7 @@ import {SafeTransferLib} from "./vaults/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "./vaults/utils/FixedPointMathLib.sol";
 
 import {ERC20} from "./vaults/tokens/ERC20.sol";
-import {TrancheFactory} from "./tranchemaster.sol"; 
+import {TrancheFactory} from "./factories.sol"; 
 import "forge-std/console.sol";
 
 interface iTotalAssetOracle{
@@ -158,23 +157,30 @@ contract tVault is ERC4626{
   /// @notice get average real returns collected by the vault in this supervault until now  
   /// @dev exchange rate is stored in previous blocks. 
   /// TODO medianize + delay instead of mean all previous 
-  function getStoredReturnData(uint256 pastNBlock) public view returns(uint256, uint256){
+  function getStoredReturnData(uint256 pastNBlock) public view returns(uint256, uint256, uint256){
     // storeExchangeRate() ; 
-    require(nonce>= minEntries, "Not enough entries"); 
+    //require(nonce>= minEntries, "Not enough entries"); 
 
     uint256 sumSupply; 
     uint256 sumTotalAssets; 
     uint256 num_records;
 
-    for(uint i = pastNBlock; i>0; i--){
+    for(uint i = pastNBlock; i>0; --i){
       if (oracleEntries[i].exchangeRate == 0) continue ; 
       
       sumSupply += uint256(oracleEntries[i].supply); 
       sumTotalAssets+= uint256(oracleEntries[i].supply).mulWadDown(uint256(oracleEntries[i].exchangeRate)); 
       num_records++; 
-      
     }
-    return (sumSupply/num_records,sumTotalAssets/num_records); 
+
+    if (oracleEntries[0].exchangeRate != 0){
+      sumSupply += uint256(oracleEntries[0].supply); 
+      sumTotalAssets+= uint256(oracleEntries[0].supply).mulWadDown(uint256(oracleEntries[0].exchangeRate)); 
+      num_records++; 
+    }  
+            // console.log('sum',sumTotalAssets); 
+
+    return (sumSupply/num_records,sumTotalAssets/num_records, num_records); 
   }
 
   /// @notice sums over all assets in want tokens 
@@ -201,6 +207,7 @@ contract tVault is ERC4626{
 
     else oracleEntries[nonce%maxOracleEntries] = OracleEntry(previewMint(PRICE_PRECISION).safeCastTo128()
       , totalSupply.safeCastTo128()); 
+      console.log('/', uint256(previewMint(PRICE_PRECISION).safeCastTo128())); 
 
     nonce++; 
     lastBlock = block.number; 

@@ -473,9 +473,6 @@ contract GranularBondingCurve{
                 liquidityDelta: int128(amount)//.toInt128()
                 })
             ); 
-
-        //mintCallback
-
     }
 
     function remove(
@@ -510,8 +507,8 @@ contract GranularBondingCurve{
         uint128 amount0Requested,
         uint128 amount1Requested
     ) public onlyEntry _lock_  returns (uint256 amount0, uint256 amount1) {
-        // we don't need to checkTicks here, because invalid positions will never have non-zero tokensOwed{0,1}
-        Position.Info storage position = positions.get(msg.sender, tickLower, tickUpper);
+
+        Position.Info storage position = positions.get(recipient, tickLower, tickUpper);
 
         amount0 = amount0Requested > position.tokensOwed0 ? position.tokensOwed0 : amount0Requested;
         amount1 = amount1Requested > position.tokensOwed1 ? position.tokensOwed1 : amount1Requested;
@@ -1230,7 +1227,51 @@ contract SpotPool is GranularBondingCurve{
 
         if (buyTradeForBase) TradeToken.transfer(msg.sender, claimedAmount);
         else BaseToken.transfer(msg.sender, claimedAmount); 
+    }
 
+    function provideLiquidity(
+        uint16 pointLower,
+        uint16 pointUpper,
+        uint128 amount, 
+        bytes calldata data 
+        ) external {
+
+        (uint256 amount0, uint256 amount1) = this.provide(
+            msg.sender, 
+            pointLower, 
+            pointUpper, 
+            amount, 
+            data 
+        ); 
+        BaseToken.transferFrom(msg.sender, address(this), amount0); 
+
+        TradeToken.transferFrom(msg.sender,address(this), amount1);
+    }
+
+    function withdrawLiquidity(
+        uint16 pointLower,
+        uint16 pointUpper,
+        uint128 amount, 
+        bytes calldata data 
+        )external{
+
+        (uint256 amountBase, uint256 amountTrade) = this.remove(
+            msg.sender, 
+            pointLower, 
+            pointUpper, 
+            amount
+        ); 
+      
+        this.collect(
+            msg.sender, 
+            pointLower,
+            pointUpper,
+            type(uint128).max,
+            type(uint128).max
+        ); 
+
+        BaseToken.transfer(msg.sender,  amountBase); 
+        TradeToken.transfer(msg.sender, amountTrade); 
     }
 }
 
