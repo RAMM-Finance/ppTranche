@@ -5,7 +5,7 @@ import * as fs from "fs";
 // import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
-import "hardhat-typechain";
+// import "hardhat-typechain";
 import "hardhat-abi-exporter"; 
 
 function getRemappings() {
