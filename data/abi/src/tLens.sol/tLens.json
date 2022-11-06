@@ -1,0 +1,622 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getContracts",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "splitter",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "amm",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "lendingPool",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "cSenior",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "cJunior",
+            "type": "address"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "_want",
+                "type": "address"
+              },
+              {
+                "internalType": "address[]",
+                "name": "_instruments",
+                "type": "address[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "_ratios",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_junior_weight",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_promisedReturn",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_time_to_maturity",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "inceptionPrice",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct TrancheFactory.InitParams",
+            "name": "param",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct TrancheFactory.Contracts",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCurrentMarkPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCurrentValuePrices",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getElapsedTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      }
+    ],
+    "name": "getNumVaults",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getNumber",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "who",
+        "type": "address"
+      }
+    ],
+    "name": "getPositions",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "bidCrossId",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "askCrossId",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "askLiq",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "bidLiq",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "liquidity",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint256",
+            "name": "feeGrowthInside0LastX128",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "feeGrowthInside1LastX128",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokensOwed0",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokensOwed1",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Position.Info[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPrices",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTrancheInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "_want",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "_instruments",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "_ratios",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_junior_weight",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_promisedReturn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_time_to_maturity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inceptionPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "psu",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pju",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pjs",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "curMarkPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct tLens.TrancheInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      }
+    ],
+    "name": "getTrancheInfoBatch",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "_want",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "_instruments",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "_ratios",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_junior_weight",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_promisedReturn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_time_to_maturity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inceptionPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "psu",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pju",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pjs",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "curMarkPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct tLens.TrancheInfo[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTranches",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getVaultParams",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "_want",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "_instruments",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "_ratios",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_junior_weight",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_promisedReturn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_time_to_maturity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inceptionPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TrancheFactory.InitParams",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      }
+    ],
+    "name": "setTFactory",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tMaster_ad",
+        "type": "address"
+      }
+    ],
+    "name": "setTMaster",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

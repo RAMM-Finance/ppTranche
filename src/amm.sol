@@ -352,7 +352,7 @@ contract GranularBondingCurve{
         ) public onlyEntry _lock_  returns(uint256 amountToReturn) {
         require(priceToPoint(uint256(slot0.curPrice)) != point, "Can't reduce order for current tick"); 
 
-        Position.Info storage position = positions.get(msg.sender, point, point+1);
+        Position.Info storage position = positions.get(recipient, point, point+1);
 
         position.updateLimit(-int128(amount), isAsk, 0); 
 
@@ -473,6 +473,7 @@ contract GranularBondingCurve{
                 liquidityDelta: int128(amount)//.toInt128()
                 })
             ); 
+        recordPosition(recipient, pointLower, pointUpper); 
     }
 
     function remove(
@@ -629,6 +630,7 @@ contract GranularBondingCurve{
         position.update(liquidityDelta, feeGrowthInsideBase,feeGrowthInsideTrade); 
     }
 
+    function recordPosition(address recipient, uint16 point1, uint16 point2) internal virtual {}
 
     /// @notice Compute results of swap given amount in and params
     /// @param feePips The fee taken from the input amount, expressed in hundredths of a bip
@@ -1143,7 +1145,9 @@ library Tick {
 
 
 contract SpotPool is GranularBondingCurve{
-
+    using Position for mapping(bytes32 => Position.Info);
+    using Position for Position.Info;
+    using SafeCast for uint256; 
     ERC20 BaseToken; //junior
     ERC20 TradeToken; //senior 
     // GranularBondingCurve public pool; 
@@ -1156,6 +1160,28 @@ contract SpotPool is GranularBondingCurve{
         TradeToken = ERC20(_tradeToken); 
         // pool = new GranularBondingCurve(_baseToken,_tradeToken); 
     }
+    mapping(address=> LoggedPosition[]) public loggedPositions; 
+
+    struct LoggedPosition{
+        uint16 point1; 
+        uint16 point2; 
+    }
+    function getLoggedPosition(address who) external view returns(LoggedPosition[] memory){
+        return loggedPositions[who]; 
+    }
+    function getPosition(address who, uint16 pointLower, uint16 pointUpper) external view returns(Position.Info memory){
+        return positions.get(who, pointLower, pointUpper); 
+    }
+
+    /// @notice only for logging purposes, change this into an nft or smth 
+    function recordPosition(address recipient, uint16 point1, uint16 point2) internal override{
+
+        loggedPositions[recipient].push(LoggedPosition(point1, point2)); 
+    }
+    
+    // function getTraderPosition(address recipient, uint16 point1, uint16 point2)external view{
+    //     positions.get()
+    // }
 
     function handleBuys(address recipient, uint256 amountOut, uint256 amountIn, bool up) internal {
 
@@ -1229,12 +1255,62 @@ contract SpotPool is GranularBondingCurve{
         else BaseToken.transfer(msg.sender, claimedAmount); 
     }
 
+    function makerReduce(      
+        uint16 point, 
+        uint256 amount, 
+        bool isAsk
+        ) external{
+
+        if(isAsk){
+            uint256 returned_amount = this.reduceLimitOrder(
+                msg.sender, 
+                point, 
+                liquidityGivenTrade(
+                    uint256(pointToPrice(point+1)), 
+                    uint256(pointToPrice(point)), amount).toUint128(), 
+                true
+                ); 
+            // need to send trade back 
+            console.log('ff', returned_amount, TradeToken.balanceOf(address(this))); 
+            TradeToken.transfer(msg.sender, returned_amount); 
+        }
+
+        else{
+            // reduce limit bids 
+            uint256 returned_amount = this.reduceLimitOrder(
+                msg.sender, 
+                point, 
+                liquidityGivenTrade(
+                    uint256(pointToPrice(point+1)), 
+                    uint256(pointToPrice(point)), amount).toUint128(), 
+                false
+            ); 
+             
+            BaseToken.transfer(msg.sender, returned_amount); 
+        }
+    }
+    function makerPartiallyClaim(
+        uint16 point, 
+        bool buyTradeForBase
+        ) external returns(uint256 baseAmount, uint256 tradeAmount){
+        // limit below (bid)
+        if(buyTradeForBase){
+            (baseAmount, tradeAmount) = this.claimPartiallyFilledOrder(msg.sender, point, false);
+        }
+        else{
+            (baseAmount, tradeAmount) = this.claimPartiallyFilledOrder(msg.sender, point, true); 
+        }
+
+        BaseToken.transfer(msg.sender, baseAmount);
+        TradeToken.transfer(msg.sender, tradeAmount); 
+    }
+
     function provideLiquidity(
         uint16 pointLower,
         uint16 pointUpper,
         uint128 amount, 
         bytes calldata data 
-        ) external {
+        ) external returns(uint256 amount0, uint256 amount1){
 
         (uint256 amount0, uint256 amount1) = this.provide(
             msg.sender, 
@@ -1272,6 +1348,10 @@ contract SpotPool is GranularBondingCurve{
 
         BaseToken.transfer(msg.sender,  amountBase); 
         TradeToken.transfer(msg.sender, amountTrade); 
+    }
+
+    function setLiquidity0() public {
+        liquidity = uint128(0); 
     }
 }
 

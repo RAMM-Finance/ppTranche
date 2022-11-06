@@ -9,6 +9,7 @@ out/
 
 # Dotenv file
 .env
+ 
 /typechain-types
 typechain-types
 .typechain-types

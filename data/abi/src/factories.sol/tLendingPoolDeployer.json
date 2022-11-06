@@ -1,0 +1,15 @@
+[
+  {
+    "inputs": [],
+    "name": "deployNewPool",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "newPoolAd",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

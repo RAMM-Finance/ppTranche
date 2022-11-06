@@ -12,22 +12,27 @@ import {tLendingPoolDeployer, TrancheAMMFactory, TrancheFactory, SplitterFactory
 
 import "forge-std/console.sol";
 
+// TOOD transfer instead of burn, include vaultID 
 /// @notice handles all trading related stuff 
 /// Ideas for pricing: queue system, funding rates, fees, 
 contract TrancheMaster{
     using FixedPointMathLib for uint256;
     uint256 constant precision = 1e18; 
 
+    uint256 constant feeThreshold = 1e16; 
+    uint256 constant kpi = 0; 
+    bool feePenaltySet; 
     TrancheFactory tFactory;
 
     constructor(TrancheFactory _tFactory){
         tFactory = _tFactory; 
+        SLIPPAGETOLERANCE = 5e16; //5percent
     }
 
     mapping(uint256=> DebtData) juniorDebts; //Price space=> debt
     mapping(uint256=> DebtData) seniorDebts; 
     mapping(bytes32=>uint256) dVaultPositions; 
-
+    mapping (bytes32 => uint256) freedVault; 
 
     struct DebtData{
         // d or c stands for debt Or credit 
@@ -46,10 +51,7 @@ contract TrancheMaster{
         uint256 junior_weight; 
 
         uint256 pTv; //price of tranche/vault
-        uint256 pju;
-        uint256 psu; 
         uint256 pjs; 
-        uint256 pvu; 
 
         uint256 vaultAmount; 
         uint256 dVaultPosition; 
@@ -61,49 +63,64 @@ contract TrancheMaster{
         uint256 pairAmount; 
         uint256 totalAmount; 
         uint256 redeemVaultAmount; 
+
+        uint256 dvaultPos; 
+        uint256 freeVault; 
+        uint256 seniorSupply;
+        uint256 juniorSupply; 
     }
 
-    /// @notice redeems for debt vault to do arbitrage or slippage exit  
-    /// such that a complete senior and junior pair need not be available 
-    /// @param amount is amount of senior/junior wishing to redeem 
-    function redeemToDebtVault(
-        uint256 amount, 
-        bool isSenior, 
-        uint256 vaultId
-        ) external returns(uint256){
-        RedeemLocalvars memory vars; 
+    /// @notice setup local variables to be used 
+    function setUpLocalRedeemVars(uint256 vaultId, bool isSenior, RedeemLocalvars memory vars) internal{
         TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
         vars.amm = SpotPool(contracts.amm);
+        vars.vault = tVault(contracts.vault); 
         vars.splitter = Splitter(contracts.splitter); 
         vars.junior_weight = vars.splitter.junior_weight(); 
         vars.multiplier = isSenior ? vars.junior_weight.divWadDown(precision - vars.junior_weight)
                                   : (precision - vars.junior_weight).divWadDown(vars.junior_weight);
         (vars.junior, vars.senior) = vars.splitter.getTrancheTokens();
+    } 
 
-        (vars.pju, vars.psu, vars.pjs) = vars.splitter.computeValuePrices();
-        vars.pvu  = vars.splitter.underlying().queryExchangeRateOracle(); 
-        vars.pTv = isSenior? vars.psu.divWadDown(vars.pvu) : vars.pju.divWadDown(vars.pvu);
+    /// @notice redeems for debt vault to do arbitrage or slippage exit  
+    /// such that a complete senior and junior pair need not be available 
+    /// @param amount is amount of senior/junior wishing to redeem 
+    /// @dev uses the current prices to store 
+    function redeemToDebtVault(
+        uint256 amount, 
+        bool isSenior, 
+        uint256 vaultId
+        ) external returns(uint256, uint256){
+        RedeemLocalvars memory vars; 
+        setUpLocalRedeemVars(vaultId, isSenior, vars); 
 
-        // redeem amount of junior or senior -> get how much vault is it worth
-        vars.vaultAmount = vars.pTv.mulWadDown(amount); // pTv is one tranche worth pTv amount of vault 
+        // Get pTv, the price of tranche/vault  
+        (,, vars.pjs) = vars.splitter.computeValuePrices();
+        vars.pTv = getPTV(vars.pjs, isSenior, vars.junior_weight); 
 
-        dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, vars.pjs))] = vars.vaultAmount; 
+        // redeem amount of junior or senior -> get how much vault is it worth given pTv
+        vars.vaultAmount = vars.pTv.mulWadDown(amount); 
 
+        // Record new debtVault position 
+        dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, vars.pjs))] += vars.vaultAmount; 
+
+        // Record Dorc and Escrow 
         if(isSenior) {
-            juniorDebts[vars.pjs].juniorDorc += vars.multiplier.mulWadUp(amount); 
-            juniorDebts[vars.pjs].seniorDorc += amount; 
-            ERC20(vars.senior).transferFrom(msg.sender,address(this), amount); 
+            juniorDebts[cantorPair(vaultId, vars.pjs)].juniorDorc += vars.multiplier.mulWadUp(amount); 
+            juniorDebts[cantorPair(vaultId, vars.pjs)].seniorDorc += amount;
+            ERC20(vars.senior).transferFrom(msg.sender,address(vars.splitter), amount); 
         }
         else {
-            seniorDebts[vars.pjs].seniorDorc += vars.multiplier.mulWadUp(amount); 
-            seniorDebts[vars.pjs].juniorDorc += amount; 
-            ERC20(vars.junior).transferFrom(msg.sender,address(this), amount); 
+            seniorDebts[cantorPair(vaultId, vars.pjs)].seniorDorc += vars.multiplier.mulWadUp(amount); 
+            seniorDebts[cantorPair(vaultId, vars.pjs)].juniorDorc += amount; 
+            ERC20(vars.junior).transferFrom(msg.sender,address(vars.splitter), amount); 
         }
-        return vars.vaultAmount; 
+        
+        return (vars.vaultAmount, vars.pjs); 
     }
 
     /// @notice redeems debtVault to real Vault. 
-    /// claims redeemable(where pair debt has been paid) dVault first in first out basis 
+    /// claims redeemable(where pair debt has been paid) dVault, first in first out basis 
     function redeemFromDebtVault(
         uint256 dVaultAmount,
         uint256 pjs,  
@@ -111,46 +128,86 @@ contract TrancheMaster{
         bool isSenior
         ) external returns(uint256){
         RedeemLocalvars memory vars; 
-        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-        vars.splitter = Splitter(contracts.splitter); 
-        vars.junior_weight = vars.splitter.junior_weight(); 
-        vars.multiplier = isSenior ? vars.junior_weight.divWadDown(precision - vars.junior_weight)
-                                  : (precision - vars.junior_weight).divWadDown(vars.junior_weight);
-        vars.vault = tVault(contracts.vault); 
+        setUpLocalRedeemVars(vaultId, isSenior, vars); 
+        vars.dvaultPos = dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))]; 
+        (vars.seniorSupply, vars.juniorSupply) = (ERC20(vars.senior).totalSupply(), ERC20(vars.junior).totalSupply());
 
-        // check how much debtVault can be redeemed 
-        if(isSenior){
-            // How much did the pair tranche redeem at given pjs 
-            DebtData memory debtData = juniorDebts[pjs]; 
+        // Check if enough balance
+        require(vars.dvaultPos >= dVaultAmount, "balERR"); 
+        DebtData memory debtData = isSenior ? juniorDebts[cantorPair(vaultId, pjs)]
+                                            : seniorDebts[cantorPair(vaultId, pjs)]; 
+
+        if(isSenior && debtData.seniorDorc > 0){
+            // Find how much did the pair tranche redeem at given pjs, to compute the available tranche to be freed
             vars.freeTranche = debtData.seniorDorc.mulWadUp(vars.multiplier) - debtData.juniorDorc; 
             vars.trancheToBeFreed = vars.freeTranche.divWadDown(vars.multiplier); 
 
-            // get how much vault does this tranche translate to
-            vars.totalAmount =  precision + vars.multiplier.mulWadDown(precision); 
-            vars.pTv = vars.totalAmount.divWadDown(precision + precision.mulWadDown(vars.multiplier).mulWadDown(pjs));
-            vars.vaultCanBeFreed = min(vars.trancheToBeFreed.mulWadDown(vars.pTv) ,  dVaultAmount); 
+            // find how much vault does this free tranche translate to
+            vars.pTv = getPTV(pjs, isSenior, vars.junior_weight); 
+            vars.vaultCanBeFreed = min(vars.trancheToBeFreed.mulWadDown(vars.pTv),  dVaultAmount); 
+            vars.trancheToBeFreed = vars.vaultCanBeFreed.divWadDown(vars.pTv); 
 
-            // decrease global,redeemr's credit and transfer redeemable vault. revert if not enough
-            juniorDebts[pjs].seniorDorc -= vars.vaultCanBeFreed.divWadDown(vars.pTv); 
-            dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))] -= vars.vaultCanBeFreed;
-            vars.splitter.trustedBurn(true, address(this), vars.vaultCanBeFreed.divWadDown(vars.pTv)); 
-            vars.vault.transferFrom(address(vars.splitter), msg.sender, vars.vaultCanBeFreed); 
-        }
+            // If tranchedTobefreed greater than seniorDorc, means that somebody already consumed this liq
+            if (debtData.seniorDorc < vars.trancheToBeFreed)
+                revert("liqERR"); 
 
-        else{
-            DebtData memory debtData = seniorDebts[pjs]; 
+            // decrease redeemer's credit and global debt. Underflow conditions checked already
+            unchecked{
+                juniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= vars.vaultCanBeFreed.divWadDown(vars.pTv); 
+                dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))] -= vars.vaultCanBeFreed;
+            }
+
+            // Burn both pairs by the appropriate ratio, and transfer 
+            vars.splitter.trustedBurn(false, address(vars.splitter), 
+                vars.vaultCanBeFreed.divWadDown(vars.pTv).mulWadDown(vars.multiplier)); 
+            vars.splitter.trustedBurn(true, address(vars.splitter), vars.vaultCanBeFreed.divWadDown(vars.pTv)); 
+            vars.vault.transferFrom(address(vars.splitter), msg.sender, vars.vaultCanBeFreed);
+
+            // Invariant 1: Senior:Junior supply ratio always hold 
+            assertApproxEqual(vars.seniorSupply.mulWadDown(vars.multiplier), vars.juniorSupply, 10 ); 
+        }   
+        else if(!isSenior && debtData.juniorDorc >0){
             vars.freeTranche = debtData.juniorDorc.mulWadDown(vars.multiplier) - debtData.seniorDorc; 
             vars.trancheToBeFreed = vars.freeTranche.divWadDown(vars.multiplier);
 
-            vars.totalAmount =  precision + vars.multiplier.mulWadDown(precision); 
-            vars.pTv = vars.totalAmount.divWadDown(precision + precision.mulWadDown(vars.multiplier).divWadDown(pjs)); 
+            vars.pTv = getPTV(pjs, isSenior, vars.junior_weight); 
             vars.vaultCanBeFreed = min(vars.trancheToBeFreed.mulWadDown(vars.pTv) ,  dVaultAmount); 
+            vars.trancheToBeFreed = vars.vaultCanBeFreed.divWadDown(vars.pTv); 
 
-            seniorDebts[pjs].juniorDorc -= vars.vaultCanBeFreed.divWadDown(vars.pTv); 
-            dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))] -= vars.vaultCanBeFreed; 
-            vars.splitter.trustedBurn(false, address(this), vars.vaultCanBeFreed.divWadDown(vars.pTv)); 
+            if(debtData.juniorDorc < vars.trancheToBeFreed)
+                revert("liqERR");
+
+            unchecked{
+                seniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= vars.vaultCanBeFreed.divWadDown(vars.pTv); 
+                dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))] -= vars.vaultCanBeFreed; 
+            } 
+
+            vars.splitter.trustedBurn(true, address(vars.splitter), 
+                vars.vaultCanBeFreed.divWadDown(vars.pTv).mulWadDown(vars.multiplier)); 
+            vars.splitter.trustedBurn(false, address(vars.splitter), vars.vaultCanBeFreed.divWadDown(vars.pTv)); 
             vars.vault.transferFrom(address(vars.splitter), msg.sender, vars.vaultCanBeFreed); 
+            assertApproxEqual(vars.juniorSupply.mulWadDown(vars.multiplier), vars.seniorSupply, 10 ); 
         }
+
+        // check how much can be redeemed from swaps from vault, and how much can be redeemed by msg.sender
+        vars.freeVault = freedVault[keccak256(abi.encodePacked(isSenior, pjs, vaultId))]; 
+        if(vars.freeVault > 0 && vars.dvaultPos >0){
+            // give msg sender freedvault first in first out basis 
+            freedVault[keccak256(abi.encodePacked(isSenior, pjs, vaultId))] -= min(
+                vars.dvaultPos,vars.freeVault);
+            dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))] -= min(
+                vars.dvaultPos,vars.freeVault); 
+
+            //TODO burn escrowed senior tokens  
+
+            vars.vault.transferFrom(address(vars.splitter), msg.sender,min(vars.dvaultPos,vars.freeVault)); 
+
+            return min(vars.dvaultPos,vars.freeVault) + vars.vaultCanBeFreed;
+        }
+
+        // Invariant 2: all vault should be redeemable from splitter 
+        assertApproxEqual(vars.splitter.escrowedVault(), vars.seniorSupply + vars.juniorSupply, 10); 
+
         return vars.vaultCanBeFreed; 
     }
 
@@ -163,45 +220,30 @@ contract TrancheMaster{
         uint256 pjs, 
         bool isSenior, 
         uint256 vaultId) external returns(uint256){
-
         RedeemLocalvars memory vars; 
-        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-        vars.splitter = Splitter(contracts.splitter); 
-        vars.vault = tVault(contracts.vault); 
-        vars.junior_weight = vars.splitter.junior_weight(); 
-        vars.multiplier = isSenior ? vars.junior_weight.divWadDown(precision - vars.junior_weight)
-                                  : (precision - vars.junior_weight).divWadDown(vars.junior_weight);
+        setUpLocalRedeemVars(vaultId, isSenior, vars); 
+        vars.pTv = getPTV(pjs, isSenior, vars.junior_weight); 
+
+        // how much vault will the redeemer get
+        vars.redeemVaultAmount = amount.mulWadDown(vars.pTv);
         if(!isSenior) {
-            // get total vault to be redeemed 
-            vars.pairAmount = amount.mulWadDown(vars.multiplier); 
-            vars.totalAmount = (amount + vars.pairAmount); 
-
-            // compute price of junior/vault given pjs and totalamount 
-            vars.pTv = vars.totalAmount.divWadDown(amount + vars.pairAmount.divWadDown(pjs)); 
-
-            // how much vault will the redeemer get
-            vars.redeemVaultAmount = amount.mulWadDown(vars.pTv);
-
             // reduce repayed debt and transfer, revert if not possible 
-            require(juniorDebts[pjs].juniorDorc >= amount, "liqERR");   
-            unchecked {juniorDebts[pjs].juniorDorc -= amount;} 
-            vars.splitter.trustedBurn(false, msg.sender,  amount); 
+            require(juniorDebts[cantorPair(vaultId, pjs)].juniorDorc >= amount, "liqERR");   
+            unchecked {juniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= amount;} 
+
+            // Escrow tranche to splitter and spit back vault 
+            ERC20(vars.junior).transferFrom(msg.sender, address(vars.splitter), amount); 
             vars.vault.transferFrom(address(vars.splitter), msg.sender, vars.redeemVaultAmount);  
         }
 
         else{
-            vars.pairAmount = amount.mulWadDown(vars.multiplier); 
-            vars.totalAmount = (amount + vars.pairAmount); 
+            require(seniorDebts[cantorPair(vaultId, pjs)].seniorDorc >= amount, "liqERR"); 
+            unchecked {seniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= amount; }
 
-            vars.pTv = vars.totalAmount.divWadDown(amount + vars.pairAmount.mulWadDown(pjs));
-
-            vars.redeemVaultAmount = amount.mulWadDown(vars.pTv); 
-
-            require(seniorDebts[pjs].seniorDorc >= amount, "liqERR"); 
-            unchecked {seniorDebts[pjs].seniorDorc -= amount; }
-            vars.splitter.trustedBurn(true, msg.sender, amount); 
+            ERC20(vars.senior).transferFrom(msg.sender, address(vars.splitter), amount); 
             vars.vault.transferFrom(address(vars.splitter), msg.sender, vars.redeemVaultAmount);
         }
+
         return vars.redeemVaultAmount; 
     }
 
@@ -213,40 +255,61 @@ contract TrancheMaster{
         bool isSenior, 
         uint256 vaultId) external{
         RedeemLocalvars memory vars; 
-        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-        vars.splitter = Splitter(contracts.splitter); 
-        vars.junior_weight = vars.splitter.junior_weight(); 
-        vars.multiplier = isSenior ? vars.junior_weight.divWadDown(precision - vars.junior_weight)
-                                  : (precision - vars.junior_weight).divWadDown(vars.junior_weight);
+        setUpLocalRedeemVars(vaultId, isSenior, vars); 
 
-        (vars.junior, vars.senior) = vars.splitter.getTrancheTokens();
+        // get how much vault does the amount translate to, given pjs. 
+        vars.pTv = getPTV(pjs, isSenior, vars.junior_weight);
+        vars.freeTranche = amount.divWadDown(vars.pTv); 
 
         if(isSenior){
-            // get how much vault does the amount translate to, given pjs. 
-            vars.totalAmount =  precision + vars.multiplier.mulWadDown(precision); 
-            vars.pTv = vars.totalAmount.divWadDown(precision + precision.mulWadDown(vars.multiplier).mulWadDown(pjs));
-            vars.freeTranche = amount.divWadDown(vars.pTv); 
-
-            // Revert by underflow if can't be unredeemed 
-            juniorDebts[pjs].juniorDorc -= vars.multiplier.mulWadDown(vars.freeTranche); 
-            juniorDebts[pjs].seniorDorc -= amount.divWadDown(vars.pTv); 
+            // underflow if can't be unredeemed 
+            juniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= vars.multiplier.mulWadDown(vars.freeTranche); 
+            juniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= vars.freeTranche; 
             dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))] -= amount; 
 
-            ERC20(vars.senior).transfer(msg.sender, vars.freeTranche); 
+            ERC20(vars.senior).transferFrom(address(vars.splitter), msg.sender, vars.freeTranche); 
         }
 
         else{
-            vars.totalAmount =  precision + vars.multiplier.mulWadDown(precision); 
-            vars.pTv = vars.totalAmount.divWadDown(precision + precision.mulWadDown(vars.multiplier).divWadDown(pjs)); 
-            vars.freeTranche = amount.divWadDown(vars.pTv); 
-
-            seniorDebts[pjs].seniorDorc -= vars.multiplier.mulWadDown(vars.freeTranche);
-            seniorDebts[pjs].juniorDorc -= amount.divWadDown(vars.pTv); 
+            seniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= vars.multiplier.mulWadDown(vars.freeTranche);
+            seniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= vars.freeTranche; 
             dVaultPositions[keccak256(abi.encodePacked(vaultId, msg.sender,isSenior, pjs))] -= amount; 
 
-            ERC20(vars.junior).transfer(msg.sender, vars.freeTranche); 
+            ERC20(vars.junior).transferFrom(address(vars.splitter), msg.sender, vars.freeTranche); 
         }
     }
+
+    /// @notice use the dVault liquidity that was created to creat dVaults
+    //  to perform slippage free trades, and free up dvaults for redemption 
+    function swapFromDebtVault(        
+        uint256 amount,//amount is in v
+        uint256 pjs, 
+        bool isSenior, // if isSenior, want to buy senior
+        uint256 vaultId) external returns(uint256){
+        RedeemLocalvars memory vars; 
+        setUpLocalRedeemVars(vaultId, isSenior, vars); 
+        vars.pTv = getPTV(pjs, isSenior, vars.junior_weight); 
+
+        // want senior, then take in junior and pay junior debt
+        if (isSenior){
+            // underflow if not enough liq.
+            juniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= amount.divWadDown(vars.pTv); 
+            juniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= amount.divWadDown(vars.pTv).mulWadDown(vars.multiplier); 
+            ERC20(vars.senior).transferFrom(address(vars.splitter), msg.sender, amount.divWadDown(vars.pTv));
+        }
+        else{
+            seniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= amount.divWadDown(vars.pTv); 
+            seniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= amount.divWadDown(vars.pTv).mulWadDown(vars.multiplier); 
+            ERC20(vars.junior).transferFrom(address(vars.splitter), msg.sender, amount.divWadDown(vars.pTv));
+        }
+
+        // record how much vault has been freed, so  
+        freedVault[keccak256(abi.encodePacked(isSenior, pjs, vaultId))] += amount; 
+
+        // escrow from buyer  
+        vars.vault.transferFrom(msg.sender, address(vars.splitter), amount);
+    } 
+
 
 
     struct SwapLocalvars{    
@@ -263,7 +326,23 @@ contract TrancheMaster{
 
         uint256 juniorAmount; 
         uint256 seniorAmount; 
+        // uint256 multiplier; 
+        uint256 junior_weight;
+        uint256 pTv; 
+        uint256 requiredPair;
+        uint256 markpjs; 
+        uint256 multiplier; 
+        uint256 seniorSupply;
+        uint256 juniorSupply; 
+    }
 
+    function setUpLocalSwapVars(uint256 vaultId, SwapLocalvars memory vars) internal{
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        vars.amm = SpotPool(contracts.amm);
+        vars.splitter = Splitter(contracts.splitter); 
+        vars.vault = tVault(contracts.vault); 
+        (vars.junior, vars.senior) = vars.splitter.getTrancheTokens();
+        vars.junior_weight = vars.splitter.junior_weight(); 
     }
 
     /// @notice function for swapping from junior->senior and vice versa
@@ -276,30 +355,31 @@ contract TrancheMaster{
         bytes calldata data
         ) public returns(uint256 amountIn, uint256 amountOut){
         SwapLocalvars memory vars; 
-        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-        vars.amm = SpotPool(contracts.amm);
-        vars.splitter = Splitter(contracts.splitter); 
-        (vars.junior, vars.senior) = vars.splitter.getTrancheTokens();
-
+        setUpLocalSwapVars(vaultId, vars); 
+        if(priceLimit==0) {
+            if(toJunior)
+                priceLimit = vars.amm.getCurPrice().mulWadDown(precision + 1e17); 
+            else priceLimit = vars.amm.getCurPrice().mulWadDown(precision - 1e17); 
+        }
         // Make a trade first so that price after the trade can be used
-        console.log(uint256(amount));
         (amountIn,  amountOut) =
             vars.amm.takerTrade(msg.sender, toJunior, amount, priceLimit, data);
 
-        // get mark/index price 
-        (uint indexPsu, uint indexPju,  ) = vars.splitter.computeValuePrices(); 
-        (uint markPsu, uint markPju) = vars.splitter.computeImpliedPrices(
-            vars.amm.getCurPrice() // TODO!! ez manipulation cache it somehow
-            );
-            
-        // fee is always denominated in amountOut 
-        if(toJunior && markPju+feeThreshold < indexPju){
-            uint fee = getFee(indexPju, markPju); 
-            ERC20(vars.junior).transferFrom(msg.sender,address(vars.splitter), fee);
-        }
-        else if(!toJunior && markPju > indexPju + feeThreshold){
-            uint fee = getFee(indexPsu, markPsu); 
-            ERC20(vars.senior).transferFrom(msg.sender, address(vars.splitter), fee);
+        if(feePenaltySet){
+            (uint indexPsu, uint indexPju,  ) = vars.splitter.computeValuePrices(); 
+            (uint markPsu, uint markPju) = vars.splitter.computeImpliedPrices(
+                vars.amm.getCurPrice() // TODO!! ez manipulation cache it somehow
+                );
+                
+            // fee is always denominated in amountOut 
+            if(toJunior && markPju+feeThreshold < indexPju){
+                uint fee = getFee(indexPju, markPju); 
+                ERC20(vars.junior).transferFrom(msg.sender,address(vars.splitter), fee);
+            }
+            else if(!toJunior && markPju > indexPju + feeThreshold){
+                uint fee = getFee(indexPsu, markPsu); 
+                ERC20(vars.senior).transferFrom(msg.sender, address(vars.splitter), fee);
+            }
         }
     }
 
@@ -312,17 +392,19 @@ contract TrancheMaster{
         uint priceLimit, 
         uint vaultId, 
         bytes calldata data) public returns(uint256 amountIn, uint256 amountOut){
-
         SwapLocalvars memory vars; 
-        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-        vars.amm = SpotPool(contracts.amm);
-        vars.splitter = Splitter(contracts.splitter); 
-        vars.vault = tVault(contracts.vault); 
-        (vars.junior, vars.senior) = vars.splitter.getTrancheTokens();
-
+        setUpLocalSwapVars(vaultId, vars);
+        (vars.seniorSupply, vars.juniorSupply) 
+            = (ERC20(vars.senior).totalSupply(), ERC20(vars.junior).totalSupply());
+        if(priceLimit==0) {
+            if(toJunior)
+                priceLimit = vars.amm.getCurPrice().mulWadDown(precision + 1e17); 
+            else priceLimit = vars.amm.getCurPrice().mulWadDown(precision - 1e17); 
+        }
+        // Escrow and split to this address
         vars.vault.transferFrom(msg.sender, address(this), amount); 
         vars.vault.approve(address(vars.splitter), amount); 
-        (vars.juniorAmount,  vars.seniorAmount) = vars.splitter.split(amount); //junior and senior now minted to this address 
+        (vars.juniorAmount,  vars.seniorAmount) = vars.splitter.split(amount); 
         vars.amountIn = toJunior ? vars.seniorAmount : vars.juniorAmount; 
 
         if (toJunior) ERC20(vars.senior).approve(address(vars.amm), vars.amountIn); 
@@ -332,6 +414,8 @@ contract TrancheMaster{
 
         if(!toJunior) ERC20(vars.senior).transfer(msg.sender, amountOut + vars.seniorAmount );
         else ERC20(vars.junior).transfer(msg.sender, amountOut + vars.juniorAmount);  
+
+        assertApproxEqual(vars.splitter.escrowedVault(), vars.seniorSupply + vars.juniorSupply, 10); 
     }
 
     /// @notice two ways to buy junior/senior from underlying 
@@ -344,16 +428,11 @@ contract TrancheMaster{
         bool wantSenior, 
         uint amount,
         uint vaultId,
-        uint priceLimit) 
+        uint priceLimit,
+        bytes calldata data) 
         public {
         SwapLocalvars memory vars; 
-        bytes memory data; 
-        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-        vars.amm = SpotPool(contracts.amm);
-        vars.vault = tVault(contracts.vault); 
-        vars.splitter = Splitter(contracts.splitter); 
-        vars.want = ERC20(contracts.param._want); 
-        (vars.junior, vars.senior) = vars.splitter.getTrancheTokens();
+        setUpLocalSwapVars(vaultId, vars);
 
         // Mint to this addres
         vars.want.transferFrom(msg.sender, address(this), amount); 
@@ -365,30 +444,218 @@ contract TrancheMaster{
         vars.vault.approve(address(vars.splitter), shares); 
         (uint juniorAmount, uint seniorAmount) = vars.splitter.split( shares); //junior and senior now minted to this address 
         uint amountIn = wantSenior? juniorAmount : seniorAmount; 
-        (, uint poolamountOut) = vars.amm.takerTrade(address(this), !wantSenior, int256(amountIn), priceLimit, data); 
+        (, uint poolamountOut) = vars.amm.takerTrade(address(this), !wantSenior, 
+                int256(amountIn), priceLimit, data); 
 
         if(wantSenior) ERC20(vars.senior).transfer(msg.sender, poolamountOut + seniorAmount );
         else ERC20(vars.junior).transfer(msg.sender, poolamountOut + juniorAmount);  
-  
     }  
 
-    /// @notice route optimal redeem path for given pjs
-    function routeOptimalTrade() external{
+    /// @notice use the AMM to swap tranche back to vault
+    function _swapToInstrument(
+        bool fromJunior, 
+        uint256 amount, 
+        uint priceLimit, 
+        uint vaultId, 
+        bytes calldata data
+        ) public returns(uint256 amountIn, uint256 amountOut){
+        SwapLocalvars memory vars; 
+        setUpLocalSwapVars(vaultId, vars);
 
+        // swap to ratio first 
+        (vars.amountIn, vars.amountOut, ) = _swapToRatio(fromJunior, amount, 
+            priceLimit,vaultId, data, vars ); 
+
+        // give them back vault 
+        if(!fromJunior) vars.splitter.merge(vars.amountIn); 
+        else vars.splitter.merge(vars.amountOut); 
+        
+    }
+
+    uint256 public immutable SLIPPAGETOLERANCE; 
+
+    /// @notice given a tranche, swaps it back to the ratio for  
+    /// returns (pair1, pair2), remainder 
+    function _swapToRatio(
+        bool fromJunior, 
+        uint256 amount, 
+        uint priceLimit, 
+        uint vaultId, 
+        bytes calldata data, 
+        SwapLocalvars memory vars) public returns(uint256, uint256, uint256 ) {
+
+        vars.markpjs = vars.amm.getCurPrice(); 
+        vars.multiplier = !fromJunior ? vars.junior_weight.divWadDown(precision - vars.junior_weight)
+                                  : (precision - vars.junior_weight).divWadDown(vars.junior_weight);
+        // Senior-> Junior                          
+        if(!fromJunior){
+            //How much senior to swap for given pjs 
+            vars.amountIn = (amount.mulWadDown( vars.multiplier )).divWadDown(vars.markpjs+ vars.multiplier);
+
+            // This is amountout with slippage, so it will be less(or equal) to markpjs * amount 
+            (vars.amountIn, vars.amountOut) = vars.amm.takerTrade(address(this), 
+            !fromJunior, int256(vars.amountIn), priceLimit, data);  
+
+            // New amountIn should account for 
+            return(vars.amountOut ,  //2.8
+            vars.amountOut.mulWadDown(vars.multiplier), // 6.4
+            amount - vars.amountIn - vars.amountOut.mulWadDown(vars.multiplier)); // 10-3-6.4 remainder 
+        }
+        else{// 10junior-> 7senior 3 junior 
+            vars.amountIn = (amount.mulWadDown( vars.multiplier )).divWadDown( 
+                precision.divWadDown(vars.markpjs)+ vars.multiplier); //7 junior
+
+            (vars.amountIn, vars.amountOut) = vars.amm.takerTrade(address(this), 
+                !fromJunior, int256(vars.amountIn), priceLimit, data); 
+
+            return(vars.amountOut, // 6.7
+                vars.amountOut.mulWadDown(vars.multiplier), //6.7*3/7
+                amount-vars.amountIn - vars.amountOut.mulWadDown(vars.multiplier)// 10-6.7
+            ); 
+        }
+    }
+
+    /// @notice amount is in want, not tVault 
+    function mintTVault(
+        uint256 vaultId, 
+        uint256 amount) public{
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        ERC20(contracts.param._want).transferFrom(msg.sender, address(this), amount); 
+        ERC20(contracts.param._want).approve(contracts.vault, amount ); 
+
+        uint256 shares = tVault(contracts.vault).previewDeposit(amount); 
+        tVault(contracts.vault).mint(shares,msg.sender); 
+    }
+
+    function redeemTVault(
+        uint256 vaultId, 
+        uint256 amount) public{
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        tVault(contracts.vault).redeem(amount, msg.sender, msg.sender); 
+    }
+
+    /// @notice amount is in tVault
+    function splitTVault(
+        uint256 vaultId,
+        uint256 amount
+        ) public {
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        tVault(contracts.vault).transferFrom(msg.sender, address(this), amount); 
+        tVault(contracts.vault).approve(contracts.splitter, type(uint256).max);
+        (uint ja, uint sa) = Splitter(contracts.splitter).split(amount); 
+        (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens();
+
+        ERC20(senior).transfer(msg.sender, sa); 
+        ERC20(junior).transfer(msg.sender, ja); 
+    }
+
+    function mergeTVault(
+        uint256 vaultId, 
+        uint256 junior_amount 
+        ) public {
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        (, address senior) = Splitter(contracts.splitter).getTrancheTokens();
+
+        uint256 junior_weight = Splitter(contracts.splitter).junior_weight(); 
+        uint256 senior_amount = (precision-junior_weight)
+            .mulWadDown(junior_weight).mulWadDown(junior_amount); 
+        require(ERC20(senior).balanceOf(msg.sender) >= senior_amount, "Not enough senior tokens"); 
+
+        Splitter(contracts.splitter).mergeFromMaster( junior_amount, senior_amount, msg.sender);
+    }
+
+    /// @notice amount is in want, not tVault 
+    function mintAndSplit(uint256 vaultId, uint256 amount) public returns(uint, uint){
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        ERC20(contracts.param._want).transferFrom(msg.sender, address(this), amount); 
+        ERC20(contracts.param._want).approve(contracts.vault, amount ); 
+
+        uint256 shares = tVault(contracts.vault).previewDeposit(amount); 
+        tVault(contracts.vault).mint(shares,msg.sender); 
+        tVault(contracts.vault).approve(contracts.splitter, shares);
+        return Splitter(contracts.splitter).split(shares);
+    }
+
+    function mergeAndRedeem(uint256 vaultId, uint256 junior_amount) public{
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        uint256 junior_weight = Splitter(contracts.splitter).junior_weight(); 
+        uint256 senior_amount = (precision-junior_weight)
+            .mulWadDown(junior_weight).mulWadDown(junior_amount); 
+        (,address senior) = Splitter(contracts.splitter).getTrancheTokens();
+
+        require(ERC20(senior).balanceOf(msg.sender) >= senior_amount, "Not enough senior tokens"); 
+
+        Splitter(contracts.splitter).mergeFromMaster( junior_amount, senior_amount, msg.sender);
+        tVault(contracts.vault).redeem(junior_amount + senior_amount, msg.sender, msg.sender); 
+    }
+
+    function getAMM(uint256 vaultId) public view returns(address){
+        return tFactory.getContracts(vaultId).amm; 
+    }
+
+    function getdVaultBal(uint256 vaultId, address who, bool isSenior, uint256 pjs) public view returns(uint256){
+        return dVaultPositions[keccak256(abi.encodePacked(vaultId,who,isSenior, pjs))];
+    }
+
+    /// @notice returns how much can be swapped without slippage at price pjs 
+    function getAvailableDVaultLiq(uint256 vaultId, uint256 pjs, bool isSenior) public view returns(uint256){
+        return isSenior? juniorDebts[cantorPair(vaultId, pjs)].seniorDorc 
+            : seniorDebts[cantorPair(vaultId, pjs)].juniorDorc;  
+    }
+    
+    function getFreedVault(uint256 vaultId, uint256 pjs, bool isSenior) public view returns(uint256){
+        return freedVault[keccak256(abi.encodePacked(isSenior, pjs, vaultId))]; 
     } 
 
-    uint256 constant feeThreshold = 1e16; 
-    uint256 constant kpi = 0; 
+    function getDorc(uint256 vaultId, uint256 pjs) public view returns(uint256, uint256,uint256, uint256){
+        return( juniorDebts[cantorPair(vaultId, pjs)].juniorDorc , 
+                juniorDebts[cantorPair(vaultId, pjs)].seniorDorc , 
+                seniorDebts[cantorPair(vaultId, pjs)].juniorDorc ,
+                seniorDebts[cantorPair(vaultId, pjs)].seniorDorc);
+    }
+
+    function getPTV(uint256 pjs, bool isSenior, uint256 junior_weight) public pure returns(uint256 pTv){
+        uint256 multiplier = isSenior ? junior_weight.divWadDown(precision - junior_weight)
+                             : (precision - junior_weight).divWadDown(junior_weight);
+
+        pTv = isSenior ? (multiplier + precision).divWadDown(multiplier.mulWadDown(pjs)+ precision)
+                       : (multiplier + precision).divWadDown(multiplier.divWadDown(pjs)+ precision); 
+    }
+
+    function cantorPair(uint256 x, uint256 y) internal pure returns(uint256){
+        return ( (x+y) * (x+y+1) + y ); 
+    }
 
     /// @notice calculates trading fee when current price is offset from value price
     /// by feeThreshold param
     function getFee(uint256 p1, uint256 p2) public view returns(uint256){
         return kpi*(p1-p2); 
     }
-    function swapToUnderlying() public{}
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a >= b ? a : b;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a <= b ? a : b;
+    }
+
+    /// @notice uses the queued dVault positions to redeem, need to loop from current 
+    /// pjs till all amount is filled 
+    function fillQueue(
+        bool fromJunior, 
+        uint256 amount, 
+        uint priceLimit, 
+        uint vaultId, 
+        bytes calldata data
+        ) public returns(uint256 amountIn, uint256 amountOut){
+        // SwapLocalvars memory vars; 
+        // setUpLocalSwapVars(vaultId, vars);
+
+        // redeemByDebtVault()
+    }
+
     function swapFromTranche() external{}
     function swapFromInstrument() external {}
-    function swapToRatio() external{}
 
     /// @notice when a new tranche is initiated, and trader want senior or junior, can place bids/asks searching for
     /// a counterparty
@@ -406,37 +673,14 @@ contract TrancheMaster{
         // if(senior) fetchFromDebtPool(junior )
     }
 
+    function assertApproxEqual(uint256 a, uint256 b, uint256 roundlimit) internal pure returns(bool){
 
-    function max(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a >= b ? a : b;
+        return ( a <= b+roundlimit || a>= b-roundlimit); 
     }
 
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a <= b ? a : b;
-    }
-
-    function getAMM(uint256 vaultId) public view returns(address){
-        return tFactory.getContracts(vaultId).amm; 
-    }
-
-    function getdVaultBal(uint256 vaultId, address who, bool isSenior, uint256 pjs) public view returns(uint256){
-        return dVaultPositions[keccak256(abi.encodePacked(vaultId,who,isSenior, pjs))];
-    }
-
-    function getDorc(uint256 pjs) public view returns(uint256, uint256,uint256, uint256){
-        return( juniorDebts[pjs].juniorDorc , 
-                juniorDebts[pjs].seniorDorc , 
-                seniorDebts[pjs].juniorDorc ,
-                seniorDebts[pjs].juniorDorc);
-    }
-
-    function getPTV(uint256 pjs, bool isSenior, uint256 junior_weight) public view returns(uint256 pTv){
-        uint256 multiplier = isSenior ? junior_weight.divWadDown(precision - junior_weight)
-                             : (precision - junior_weight).divWadDown(junior_weight);
-        uint256 totalAmount =  precision + multiplier.mulWadDown(precision); 
-        pTv = isSenior ? totalAmount.divWadDown(precision + precision.mulWadDown(multiplier).mulWadDown(pjs))
-                       : totalAmount.divWadDown(precision + precision.mulWadDown(multiplier).divWadDown(pjs)); 
-
+    function getTrancheTokens(uint256 vaultId) public view returns(address, address){
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        return Splitter(contracts.splitter).getTrancheTokens();
     }
 
 }
@@ -453,6 +697,36 @@ contract TrancheMaster{
 
 
 
+    /// @notice if is ask, selling junior for senior . if !isAsk, buying junior from senior 
+    /// assumes approval is already set (for now)
+    // function doMakerTrade(
+    //     uint256 vaultId,
+    //     uint256 amount, 
+    //     uint256 isAsk, 
+    //     uint16 point) public{
+    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId);
+    //     (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+
+    //     if(isAsk){
+    //         ERC20(junior)
+    //         ERC20(junior).approve(contracts.amm, )
+    //         SpotPool(contracts.amm).makerTrade(false, amount, point ); 
+    //         function doLimitSpecifiedPoint(uint256 amountInToBid, bool limitBelow, uint16 point) public {
+    //     }
+    //     if(!limitBelow){
+    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+    //     (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+    //     ERC20(junior).approve(contracts.amm, type(uint256).max); 
+    //     SpotPool(contracts.amm).makerTrade( false, amountInToBid, point); 
+    //     }
+    //     else{
+    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
+    //     (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
+    //     ERC20(senior).approve(contracts.amm, type(uint256).max); 
+    //     SpotPool(contracts.amm).makerTrade( true, amountInToBid, point); 
+    //     }
+    // }
+    // }
 
 
     // /// @notice adds liquidity to pool with vaultId

@@ -45,6 +45,8 @@ contract LeverageModule is CErc20Behalf{
         uint256 amountToSwap; 
         uint256 amountIn;
         uint256 amountOut; 
+        uint256 startBalance; 
+        uint256 startBorrow; 
     }
 
     /// @dev Receive a flash loan.
@@ -69,6 +71,9 @@ contract LeverageModule is CErc20Behalf{
         (vars.isUnSwap, vars.leverage, vars.priceLimit, vars.vaultId, vars.sender, vars.amm)
             = abi.decode(data, (bool, uint256, uint256, uint256, address, address)); 
 
+        vars.startBalance = pair.balanceOfUnderlying(vars.sender); 
+        vars.startBorrow = borrowBalanceStored(vars.sender); 
+
         if(!vars.isUnSwap){
             // amount to buy is borrowedamount + trader's fund 
             vars.amountToSwap = amount + amount.divWadDown(vars.leverage - precision); 
@@ -90,8 +95,8 @@ contract LeverageModule is CErc20Behalf{
             borrowInternalBehalf(vars.sender, amount); 
             CErc20(underlying).transferFrom(vars.sender, address(this), amount); 
 
-            require(pair.balanceOfUnderlying(vars.sender) == vars.amountOut, "LeverageSwap Unsuccessful");
-            require(borrowBalanceStored(vars.sender) == amount, "Borrow Err"); 
+            require(pair.balanceOfUnderlying(vars.sender) - vars.startBalance == vars.amountOut, "LeverageSwap Unsuccessful");
+            require(borrowBalanceStored(vars.sender)-vars.startBorrow == amount, "Borrow Err"); 
         }
 
         else{
@@ -112,7 +117,7 @@ contract LeverageModule is CErc20Behalf{
                     !amISenior, int256(amountToSwap), vars.priceLimit ,vars.vaultId, data
                 ); 
 
-            //TODO what if swapped can't cover debt? Will revert 
+            //TODO what if swapped can't cover debt? Will revert TODO do change instead 
             require(pair.balanceOfUnderlying(vars.sender) == 0, "LeverageSwap Failed"); 
             require(borrowBalanceStored(vars.sender) == 0, "Repay Err"); 
         }

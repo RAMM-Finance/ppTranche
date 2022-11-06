@@ -22,6 +22,7 @@ contract TrancheFactory{
     address tMasterAd; 
     uint public id; 
 
+    tLendTokenDeployer lendTokenFactory; 
     tLendingPoolDeployer lendingPoolFactory; 
     TrancheAMMFactory ammFactory; 
     SplitterFactory splitterFactory; 
@@ -49,19 +50,22 @@ contract TrancheFactory{
         InitParams param;
     }
 
-    mapping(uint256=>Contracts) vaultContracts;
+    mapping(uint256=>Contracts) public vaultContracts;
     mapping(uint256=>mapping(address=>uint256)) lp_holdings;  //vaultId-> LP holdings for providrers
+    mapping(uint256=> bool) public vaultCreated; 
 
     constructor(
         address _owner, 
         address ammFactory_address, 
         address splitterFactory_address, 
-        address lendingPoolFactory_address
+        address lendingPoolFactory_address,
+        address lendTokenFactory_address
     ) public {
         owner = _owner;
         ammFactory = TrancheAMMFactory(ammFactory_address); 
         splitterFactory = SplitterFactory(splitterFactory_address); 
         lendingPoolFactory = tLendingPoolDeployer(lendingPoolFactory_address); 
+        lendTokenFactory = tLendTokenDeployer(lendTokenFactory_address); 
 
         interestRateModel = new WhitePaperInterestRateModel(
             1e18,1e18); 
@@ -99,43 +103,52 @@ contract TrancheFactory{
          inceptionPrice
             );
     }
-
+    mapping(bytes32=>uint256) public vaultIds; 
+    // step1
     function createVault(
         InitParams memory params, 
         string[] calldata names, 
-        string calldata _description) public {
-    
-        uint vaultId = id;//marketFactory.createMarket(msg.sender, _description, names, param._ratios); 
-        params.vaultId = vaultId; 
-        setupContracts(vaultId, params); 
-        id++ ; 
-    }   
-
-    function setupContracts(
-        uint vaultId, 
-        InitParams memory param) internal{
+        string calldata _description) public returns(uint256){
         require(tMasterAd != address(0), "trancheMaster not set"); 
+        uint vaultId = id; 
+        params.vaultId = vaultId; 
+        // setupContracts(vaultId, params); 
+        vaultCreated[vaultId] = true; 
+        id++ ; 
 
-        tVault newvault = new tVault(param); 
-        Splitter splitter = splitterFactory.newSplitter(newvault, vaultId, tMasterAd); 
-        (address junior, address senior) = splitter.getTrancheTokens(); 
-        SpotPool amm = ammFactory.newPool(senior, junior); 
-
-        // set cTokens
-        (address cSenior, address cJunior) = lendingPoolFactory.deployNewCTokens(); 
-
-        // set initial price to 1 
-        amm.setPriceAndPoint(splitter.precision()); 
-
+        tVault newvault = new tVault(params); 
         Contracts storage contracts = vaultContracts[vaultId]; 
         contracts.vault = address(newvault); 
-        contracts.splitter = address(splitter);
-        contracts.amm = address(amm); 
+        contracts.param = params;
+        vaultIds[keccak256(abi.encodePacked(params._want, params._junior_weight, params._promisedReturn  ))]
+            = vaultId; 
+
         contracts.lendingPool = lendingPoolFactory.deployNewPool(); 
-        contracts.param = param;
+        return vaultId; 
+    }   
+    // step2
+    function createSplitterAndPool(uint256 vaultId) external{
+        Contracts storage contracts = vaultContracts[vaultId]; 
+
+        address splitter = splitterFactory.newSplitter(tVault(contracts.vault), vaultId, tMasterAd); 
+        Splitter(splitter).setTokens(); 
+        (address junior, address senior) = Splitter(splitter).getTrancheTokens(); 
+        address amm = ammFactory.newPool(senior, junior); 
+
+        // set initial price to 1, liq to 0 
+        SpotPool(amm).setPriceAndPoint(uint256(1e18)); 
+        SpotPool(amm).setLiquidity0(); 
+
+        contracts.splitter = splitter;
+        contracts.amm = amm; 
+    }
+    // step 3
+    function createLendingPools(uint256 vaultId) external{
+        (address cSenior, address cJunior) = lendTokenFactory.deployNewCTokens(); 
+        Contracts storage contracts = vaultContracts[vaultId]; 
         contracts.cSenior = cSenior; 
         contracts.cJunior = cJunior; 
-        //address(newvault.want())
+        (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
 
         PJSOracle newOracle = new PJSOracle(); 
         setUpCTokens(cSenior, cJunior, senior, junior, contracts.lendingPool );
@@ -143,6 +156,7 @@ contract TrancheFactory{
         Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cSenior), 1e18*8/10) ;       
         Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cJunior),  1e18*8/10);  
     }
+
 
     function setUpCTokens(
         address cSenior, 
@@ -198,6 +212,7 @@ contract TrancheFactory{
     }
 
     function getContracts(uint vaultId) external view returns(Contracts memory){
+        require(vaultCreated[vaultId], "Vault doesn't exist"); 
         return vaultContracts[vaultId]; 
     }
 
@@ -231,10 +246,10 @@ contract TrancheAMMFactory{
         base_factory = msg.sender; 
     }
 
-    function newPool(address baseToken, address tradeToken) external returns(SpotPool){
+    function newPool(address baseToken, address tradeToken) external returns(address){
         SpotPool newAMM= new SpotPool( baseToken, tradeToken);
         _isPool[address(newAMM)] = true; 
-        return newAMM; 
+        return address(newAMM); 
     }
 
     function isPool(address pooladd) public view returns(bool){
@@ -244,14 +259,16 @@ contract TrancheAMMFactory{
 
 contract SplitterFactory{
 
-    function newSplitter(tVault newvault, uint vaultId, address tMasterAd) external returns(Splitter){
-        return new Splitter(newvault, vaultId, tMasterAd); 
+    function newSplitter(tVault newvault, uint vaultId, address tMasterAd) external returns(address){
+        Splitter splitter = new Splitter(newvault, vaultId, tMasterAd); 
+        return address(splitter); 
     }
 
 }
 
 
 contract tLendingPoolDeployer {
+    uint salt; 
 
     function deployNewPool() public returns(address newPoolAd){
         uint _salt = salt; //random 
@@ -268,8 +285,13 @@ contract tLendingPoolDeployer {
         }
         require(newPoolAd!=address(0), "Deploy failed"); 
         Comptroller(newPoolAd).setAdmin(msg.sender); 
+        _salt++; 
+        salt = _salt; 
     }
 
+}
+
+contract tLendTokenDeployer{
     uint salt; 
     function deployNewCTokens( ) public returns(address cSenior, address cJunior){
         uint _salt = salt; //random 
@@ -331,7 +353,37 @@ contract tLendingPoolDeployerV2 {
 }
 
 
+    // function setupContracts(
+    //     uint vaultId, 
+    //     InitParams memory param) internal{
+    //     require(tMasterAd != address(0), "trancheMaster not set"); 
 
+    //     tVault newvault = new tVault(param); 
+    //     address splitter = splitterFactory.newSplitter(newvault, vaultId, tMasterAd); 
+    //     Splitter(splitter).setTokens(); 
+    //     (address junior, address senior) = Splitter(splitter).getTrancheTokens(); 
+    //     address amm = ammFactory.newPool(senior, junior); 
+
+    //     // set cTokens
+    //     (address cSenior, address cJunior) = lendTokenFactory.deployNewCTokens(); 
+
+
+    //     Contracts storage contracts = vaultContracts[vaultId]; 
+    //     contracts.vault = address(newvault); 
+    //     contracts.splitter = splitter;
+    //     contracts.amm = amm; 
+    //     contracts.lendingPool = lendingPoolFactory.deployNewPool(); 
+    //     contracts.param = param;
+    //     contracts.cSenior = cSenior; 
+    //     contracts.cJunior = cJunior; 
+
+    //     PJSOracle newOracle = new PJSOracle(); 
+    //     setUpCTokens(cSenior, cJunior, senior, junior, contracts.lendingPool );
+    //     Comptroller(contracts.lendingPool)._setPriceOracle(newOracle); 
+    //     Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cSenior), 1e18*8/10) ;       
+    //     Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cJunior),  1e18*8/10);  
+    //     SpotPool(amm).setLiquidity0(); 
+    // }
 
 
 

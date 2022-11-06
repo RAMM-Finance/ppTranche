@@ -1,11 +1,12 @@
 import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
+// import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-preprocessor"; 
 import * as fs from "fs";
-import '@typechain/hardhat'
+// import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
-// import "hardhat-typechain";
+import "hardhat-typechain";
+import "hardhat-abi-exporter"; 
 
 function getRemappings() {
   return fs
@@ -48,7 +49,13 @@ networks:{
     },
 
 },
-
+abiExporter: {
+  path: './data/abi',
+  runOnCompile: true,
+  // clear: true,
+  // flat: true,
+  spacing: 2,
+},
 paths: {
   sources: "./src",
   cache: "./cache_hardhat",

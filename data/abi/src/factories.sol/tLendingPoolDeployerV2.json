@@ -1,0 +1,33 @@
+[
+  {
+    "inputs": [],
+    "name": "deployNewCTokens",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "cSenior",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "cJunior",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "deployNewPool",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "newPoolAd",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

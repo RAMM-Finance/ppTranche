@@ -42,6 +42,7 @@ contract Splitter{
   uint256 internalPsu;
   uint256 internalPju; 
   uint256 internalPjs; 
+  uint256 public escrowedVault; 
 
   constructor(
     tVault _underlying, //underlying vault token to split 
@@ -50,18 +51,6 @@ contract Splitter{
     ){
     underlying = _underlying; 
 
-    senior = new tToken(_underlying, 
-      "senior", 
-      string(abi.encodePacked("se_", _underlying.symbol())), 
-      address(this) 
-      );
-
-    junior = new tToken(_underlying,
-      "junior", 
-      string(abi.encodePacked("ju_", _underlying.symbol())), 
-      address(this) 
-      );
-
     junior_weight = underlying.getJuniorWeight(); 
     promised_return = underlying.getPromisedReturn(); 
     inceptionPrice = underlying.inceptionPrice(); 
@@ -69,16 +58,74 @@ contract Splitter{
     trancheMasterAd = _trancheMasterAd; 
 
     underlying.approve(trancheMasterAd, type(uint256).max); 
-    senior.approve(trancheMasterAd, type(uint256).max); 
-    junior.approve(trancheMasterAd, type(uint256).max); 
+    lastRecordTime = block.timestamp; 
+
   } 
 
+  function setTokens() external {
+    senior = new tToken(underlying, 
+      "senior", 
+      string(abi.encodePacked("se_", underlying.symbol())), 
+      address(this) 
+      );
+
+    junior = new tToken(underlying,
+      "junior", 
+      string(abi.encodePacked("ju_", underlying.symbol())), 
+      address(this) 
+      );
+    senior.approve(trancheMasterAd, type(uint256).max); 
+    junior.approve(trancheMasterAd, type(uint256).max); 
+  }
+
+  function doSnapshot(bool up, uint256 mintAmount) public{
+    junior._snapshot(); 
+    snapshotId =  senior._snapshot(); 
+    lowerValueAndIncreaseBalance(up, mintAmount); 
+    mintAmounts[snapshotId] = mintAmount; 
+  }
+
+  function claim(uint256 snapshotId, bool claimSenior) public {
+    require(!claimed[snapshotId][msg.sender], "Double Claim"); 
+    claimed[snapshotId][msg.sender] = true; 
+    tToken token = claimSenior? junior: senior; 
+
+    uint256 bal = token.balanceOfAt(msg.sender, snapshotId); 
+    uint256 supplySnapshot = token.totalSupplyAt( snapshotId); 
+    uint256 claimedAmount = bal.mulWadDown(mintAmounts[snapshotId].divWadDown(supplySnapshot));
+
+    token.transfer(msg.sender, claimedAmount); 
+  }
+  
+  mapping(uint256=>mapping(address=>bool)) claimed; 
+  mapping(uint256=> uint256) mintAmounts; 
+  uint256 snapshotId; 
+
+  function lowerValueAndIncreaseBalance(bool up, uint256 mintAmount) internal {
+    // if up, mint more seniors to be claimed by pre snapshot junior holders 
+    if(up){
+      senior.mint(address(this), mintAmount); 
+
+      // set new ratio by the current supplies 
+      uint256 juniorSupply = junior.totalSupply(); 
+      junior_weight = juniorSupply.divWadDown(senior.totalSupply() + juniorSupply); 
+    }
+    else{
+      junior.mint(address(this), mintAmount); 
+
+      (, uint256 pju, ) = computeValuePricesView(); 
+      uint256 juniorSupply = junior.totalSupply(); 
+
+      // Artificially change the senior price and reset elapsed time  
+      inceptionPrice = underlying.totalAssets() - (juniorSupply + mintAmount).mulWadDown(pju);
+      elapsedTime = 0; 
+
+      junior_weight = juniorSupply.divWadDown(senior.totalSupply() + juniorSupply); 
+    }
+  }
   /// @notice computes current value of senior/junior denominated in underlying 
   /// which is the value that one would currently get by redeeming one senior token
-  function computeValuePrices() public  returns(uint256 psu, uint256 pju, uint256 pjs){
-    underlying.storeExchangeRate(); 
-    elapsedTime += (block.timestamp - lastRecordTime);
-    lastRecordTime = block.timestamp; 
+  function computeValuePricesView() public view returns(uint256 psu, uint256 pju, uint256 pjs){
 
     // Get senior redemption price that increments per unit time as usual 
     uint256 srpPlusOne = inceptionPrice.mulWadDown(promised_return.rpow(elapsedTime, precision));
@@ -88,9 +135,14 @@ contract Splitter{
 
     // Instantaneous data, subject to manipulations 
     if (!delayedOracle){
-      totalAssetsHeld = underlying.totalAssets(); // TODO care for manipulation 
       seniorSupply = senior.totalSupply(); 
       juniorSupply = junior.totalSupply(); 
+
+      uint256 underlyingSupply = underlying.totalSupply();
+
+      // Assets held by senior and junior supply  
+      totalAssetsHeld = underlyingSupply==0? 0 : underlying.totalAssets()
+        .mulDivDown(seniorSupply+juniorSupply, underlying.totalSupply()+1); 
     }
     // Use data from pastNBlock instead
     else{
@@ -116,7 +168,14 @@ contract Splitter{
     if(!belowThreshold) pju = (totalAssetsHeld -
         srpPlusOne.mulWadDown(seniorSupply)).divWadDown(juniorSupply); 
 
-    pjs = pju.divWadDown(psu); //1.01,1.04, 1.03 
+    pjs = pju.divWadDown(psu); 
+  }
+
+  function computeValuePrices() public  returns(uint256 psu, uint256 pju, uint256 pjs){
+    elapsedTime += (block.timestamp - lastRecordTime);
+    lastRecordTime = block.timestamp; 
+    underlying.storeExchangeRate(); 
+    return computeValuePricesView(); 
   }
 
   /// @notice computes implied price of senior/underlying or junior/underlying
@@ -133,6 +192,7 @@ contract Splitter{
   function split(uint256 amount) external returns(uint, uint) {
     require(underlying.balanceOf(msg.sender)>= amount, "bal"); 
     underlying.transferFrom(msg.sender, address(this), amount); 
+    escrowedVault += amount; 
 
     uint256 junior_token_mint_amount = amount.mulWadDown(junior_weight);
     uint256 senior_token_mint_amount = amount - junior_token_mint_amount; 
@@ -148,14 +208,32 @@ contract Splitter{
   /// @param junior_amount is amount of junior tokens user want to redeem
   /// @dev senior amount is automiatically computed when given junior amount 
   function merge(uint256 junior_amount) external returns(uint){
-    uint256 senior_amount = (precision-junior_weight)
-                            .mulWadDown(junior_weight).mulWadDown(junior_amount); 
+    uint256 _junior_weight = junior_weight; 
+    uint256 senior_amount = (precision-_junior_weight)
+                            .mulWadDown(_junior_weight).mulWadDown(junior_amount); 
     require(senior.balanceOf(msg.sender) >= senior_amount, "Not enough senior tokens"); 
+    escrowedVault -= (junior_amount+senior_amount); 
 
     junior.burn(msg.sender, junior_amount);
     senior.burn(msg.sender, senior_amount);
+
     underlying.transfer(msg.sender, junior_amount+senior_amount); 
+
     return junior_amount + senior_amount; 
+  }
+
+  function mergeFromMaster(
+    uint256 junior_amount, 
+    uint256 senior_amount, 
+    address recipient) external{
+    require(msg.sender == trancheMasterAd, "not master"); 
+
+    escrowedVault -= (junior_amount+senior_amount); 
+
+    junior.burn(recipient, junior_amount);
+    senior.burn(recipient, senior_amount);
+
+    underlying.transfer(recipient, junior_amount+senior_amount); 
   }
 
   /// @dev need to return in list format to index it easily 
@@ -185,9 +263,22 @@ contract Splitter{
   function getStoredValuePrices() public view returns(uint256,uint256, uint256){
     return (internalPsu, internalPju, internalPjs); 
   }
+  function getSRP(uint256 time) public view returns(uint256){
+    return inceptionPrice.mulWadDown(promised_return.rpow(time, precision)); 
+  }
 }
 
 
-
+// contract tTokenFactory{
+//   function newToken(bool isSenior) external returns(tToken){
+//     string memory name = isSenior? "senior":"junior"; 
+//     string memory sym = isSenior? "se":"ju";
+//     return new tToken(_underlying, 
+//       name, 
+//       string(abi.encodePacked("sym", _underlying.symbol())), 
+//       msg.sender
+//     );
+//   }
+// }
 
 

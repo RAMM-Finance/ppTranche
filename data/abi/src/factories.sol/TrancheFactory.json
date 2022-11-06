@@ -1,0 +1,718 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "ammFactory_address",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "splitterFactory_address",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "lendingPoolFactory_address",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "lendTokenFactory_address",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "createLendingPools",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_want",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_instruments",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "_ratios",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_junior_weight",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_promisedReturn",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_time_to_maturity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "inceptionPrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "createParams",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "_want",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "_instruments",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "_ratios",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_junior_weight",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_promisedReturn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_time_to_maturity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inceptionPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TrancheFactory.InitParams",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "createSplitterAndPool",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "_want",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "_instruments",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "_ratios",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_junior_weight",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_promisedReturn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_time_to_maturity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inceptionPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TrancheFactory.InitParams",
+        "name": "params",
+        "type": "tuple"
+      },
+      {
+        "internalType": "string[]",
+        "name": "names",
+        "type": "string[]"
+      },
+      {
+        "internalType": "string",
+        "name": "_description",
+        "type": "string"
+      }
+    ],
+    "name": "createVault",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lpshares",
+        "type": "uint256"
+      }
+    ],
+    "name": "decreaseLPTokenBalance",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAmm",
+    "outputs": [
+      {
+        "internalType": "contract SpotPool",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCJunior",
+    "outputs": [
+      {
+        "internalType": "contract CErc20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCSenior",
+    "outputs": [
+      {
+        "internalType": "contract CErc20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getContracts",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "splitter",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "amm",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "lendingPool",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "cSenior",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "cJunior",
+            "type": "address"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "_want",
+                "type": "address"
+              },
+              {
+                "internalType": "address[]",
+                "name": "_instruments",
+                "type": "address[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "_ratios",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_junior_weight",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_promisedReturn",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_time_to_maturity",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "inceptionPrice",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct TrancheFactory.InitParams",
+            "name": "param",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct TrancheFactory.Contracts",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getLPTokenBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getParams",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "_want",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "_instruments",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "_ratios",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_junior_weight",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_promisedReturn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_time_to_maturity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inceptionPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TrancheFactory.InitParams",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getSplitter",
+    "outputs": [
+      {
+        "internalType": "contract Splitter",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getSuperVault",
+    "outputs": [
+      {
+        "internalType": "contract tVault",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "id",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lpshares",
+        "type": "uint256"
+      }
+    ],
+    "name": "increaseLPTokenBalance",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "numVaults",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_tMasterAd",
+        "type": "address"
+      }
+    ],
+    "name": "setTrancheMaster",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "vaultContracts",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "splitter",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "amm",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "lendingPool",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "cSenior",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "cJunior",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "_want",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "_instruments",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "_ratios",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_junior_weight",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_promisedReturn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_time_to_maturity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "inceptionPrice",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TrancheFactory.InitParams",
+        "name": "param",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "vaultCreated",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "vaultIds",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

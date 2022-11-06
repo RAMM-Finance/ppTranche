@@ -58,8 +58,10 @@ contract tVault is ERC4626{
     )
     ERC4626(
         ERC20(param._want),
-        string(abi.encodePacked("super ", ERC20(param._want).name(), " Vault")),
-        string(abi.encodePacked("t", ERC20(param._want).symbol()))
+
+        "hh","hh"
+       // string(abi.encodePacked("super ", " Vault")),
+        //string(abi.encodePacked("t", " Vault"))
     ) {
       want = ERC20(param._want); 
       instruments = param._instruments; 
@@ -72,13 +74,7 @@ contract tVault is ERC4626{
       init_time = block.timestamp;
 
       initial_exchange_rates = new uint[](num_instrument); 
-      PRICE_PRECISION = 10**want.decimals(); 
-
-      //need to get initial exchange rate between the instruments and want 
-      for (uint i=0; i< num_instrument; i++){
-          addressToIndex[instruments[i]] = i; 
-          initial_exchange_rates[i] = get_exchange_rate(instruments[i]); 
-      }
+      PRICE_PRECISION = 10**18; 
 
       lastBlock = block.number; 
   }
@@ -111,16 +107,17 @@ contract tVault is ERC4626{
     storeExchangeRate(); 
     if (msg.sender != owner) {
         uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
-
         if (allowed != type(uint256).max) allowance[owner][msg.sender] = allowed - shares;
     }
 
     // Check for rounding error since we round down in previewRedeem.
     require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
+
     divest(assets); 
 
     beforeWithdraw(assets, shares);
     _burn(owner, shares);
+
     emit Withdraw(msg.sender, receiver, owner, assets, shares);
     asset.safeTransfer(receiver, assets);
   }
@@ -194,9 +191,11 @@ contract tVault is ERC4626{
         shares = ERC4626(instruments[i]).balanceOf(address(this));
         sumAssets += ERC4626(instruments[i]).convertToAssets(shares); 
     }
-    return sumAssets; 
+    // return sumAssets; 
+    return sumAssets + delta.mulWadDown(sumAssets); 
   }
-
+  
+  uint256 public delta; 
   /// @notice stores oracle entries for totalAssets, which is required to compute exchange rates rates
   function storeExchangeRate() public {
     if (block.number == lastBlock) return; 
@@ -207,10 +206,17 @@ contract tVault is ERC4626{
 
     else oracleEntries[nonce%maxOracleEntries] = OracleEntry(previewMint(PRICE_PRECISION).safeCastTo128()
       , totalSupply.safeCastTo128()); 
-      console.log('/', uint256(previewMint(PRICE_PRECISION).safeCastTo128())); 
 
     nonce++; 
     lastBlock = block.number; 
+  }
+
+  /// @notice returns real time or delayed exchange rate for this vault and its underlying
+  /// oracle can be customized, or set default  
+  /// returns Pvu 
+  function queryExchangeRateOracle() public view  returns(uint256){
+    // if default oracle 
+    return previewMint(PRICE_PRECISION); //for 1 vault, how much underlying? 
   }
 
   function getUnderlying() public view returns(address){
@@ -232,20 +238,14 @@ contract tVault is ERC4626{
 
 
 
-
   uint256 public constant oracle_freq = 1; //set default as 1 which is just getting last block's exchange rate (only prevents atomic tx attacks)
   mapping(uint256=>uint256[oracle_freq]) stored_exchange_rates; //instrument index-> exchange rates 
   mapping(address=>address) priceOracles; 
 
 
-  /// @notice returns real time or delayed exchange rate for this vault and its underlying
-  /// oracle can be customized, or set default  
-  /// returns Pvu 
-  function queryExchangeRateOracle() public view  returns(uint256){
-    // if default oracle 
-    return previewMint(PRICE_PRECISION); //for 1 vault, how much underlying? 
-    //return PRICE_PRECISION.divWadDown(previewDeposit(PRICE_PRECISION)); 
-  }
+ 
+
+
 
 
   /// @notice implement typical oracle based attacks preventions: medianize+delay 
