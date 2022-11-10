@@ -45,6 +45,7 @@ contract TrancheMaster{
         SpotPool amm;  
         Splitter splitter; 
         tVault vault; 
+        DebtData debts; 
 
         uint256 multiplier; 
         address senior;
@@ -291,20 +292,46 @@ contract TrancheMaster{
         setUpLocalRedeemVars(vaultId, isSenior, vars); 
         vars.pTv = getPTV(pjs, isSenior, vars.junior_weight); 
 
+        // Amount to be swappped, and pair amount liquidity that needs to be present 
+        (vars.trancheToBeFreed, vars.pairAmount) = (amount.divWadDown(vars.pTv)
+                , amount.divWadDown(vars.pTv).mulWadDown(vars.multiplier) ); 
+
         // want senior, then take in junior and pay junior debt
         if (isSenior){
-            // underflow if not enough liq.
-            juniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= amount.divWadDown(vars.pTv); 
-            juniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= amount.divWadDown(vars.pTv).mulWadDown(vars.multiplier); 
-            ERC20(vars.senior).transferFrom(address(vars.splitter), msg.sender, amount.divWadDown(vars.pTv));
+            // check present liquidity 
+            require(
+                juniorDebts[cantorPair(vaultId, pjs)].seniorDorc 
+                        >= vars.trancheToBeFreed && 
+                juniorDebts[cantorPair(vaultId, pjs)].juniorDorc
+                        >=  vars.pairAmount, 
+                "Not enough liq"
+               ); 
+
+            // update balances and transfer 
+            unchecked{
+                juniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= vars.trancheToBeFreed; 
+                juniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= vars.pairAmount;  
+            
+            }
+            ERC20(vars.senior).transferFrom(address(vars.splitter), msg.sender, vars.trancheToBeFreed);
         }
         else{
-            seniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= amount.divWadDown(vars.pTv); 
-            seniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= amount.divWadDown(vars.pTv).mulWadDown(vars.multiplier); 
-            ERC20(vars.junior).transferFrom(address(vars.splitter), msg.sender, amount.divWadDown(vars.pTv));
+            require(
+                seniorDebts[cantorPair(vaultId, pjs)].juniorDorc 
+                    >= vars.trancheToBeFreed && 
+                seniorDebts[cantorPair(vaultId, pjs)].seniorDorc 
+                    >= vars.pairAmount,
+                "Not enough liq"
+                ); 
+
+            unchecked{
+                seniorDebts[cantorPair(vaultId, pjs)].juniorDorc -= vars.trancheToBeFreed; 
+                seniorDebts[cantorPair(vaultId, pjs)].seniorDorc -= vars.pairAmount; 
+            }
+            ERC20(vars.junior).transferFrom(address(vars.splitter), msg.sender, vars.trancheToBeFreed);
         }
 
-        // record how much vault has been freed, so  
+        // record how much vault has been freed
         freedVault[keccak256(abi.encodePacked(isSenior, pjs, vaultId))] += amount; 
 
         // escrow from buyer  
@@ -364,7 +391,7 @@ contract TrancheMaster{
                 priceLimit = vars.amm.getCurPrice().mulWadDown(precision + 1e17); 
             else priceLimit = vars.amm.getCurPrice().mulWadDown(precision - 1e17); 
         }
-        
+
         // Make a trade first so that price after the trade can be used
         (amountIn,  amountOut) =
             vars.amm.takerTrade(msg.sender, toJunior, amount, priceLimit, data);
@@ -400,13 +427,16 @@ contract TrancheMaster{
         bytes calldata data) public returns(uint256 amountIn, uint256 amountOut){
         SwapLocalvars memory vars; 
         setUpLocalSwapVars(vaultId, vars);
+
         (vars.seniorSupply, vars.juniorSupply) 
-            = (ERC20(vars.senior).totalSupply(), ERC20(vars.junior).totalSupply());
+                = (ERC20(vars.senior).totalSupply(), ERC20(vars.junior).totalSupply());
+
         if(priceLimit==0) {
             if(toJunior)
                 priceLimit = vars.amm.getCurPrice().mulWadDown(precision + 1e17); 
             else priceLimit = vars.amm.getCurPrice().mulWadDown(precision - 1e17); 
         }
+
         // Escrow and split to this address
         vars.vault.transferFrom(msg.sender, address(this), amount); 
         vars.vault.approve(address(vars.splitter), amount); 
@@ -423,6 +453,7 @@ contract TrancheMaster{
         if(!toJunior) ERC20(vars.senior).transfer(msg.sender, amountOut + vars.seniorAmount );
         else ERC20(vars.junior).transfer(msg.sender, amountOut + vars.juniorAmount);  
 
+        // Ratio invariant must hold 
         assertApproxEqual(vars.splitter.escrowedVault(), vars.seniorSupply + vars.juniorSupply, 10); 
     }
 
