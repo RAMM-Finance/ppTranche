@@ -237,6 +237,90 @@
         "internalType": "address",
         "name": "who",
         "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "splitter",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "amm",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "lendingPool",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "cSenior",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "cJunior",
+            "type": "address"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "_want",
+                "type": "address"
+              },
+              {
+                "internalType": "address[]",
+                "name": "_instruments",
+                "type": "address[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "_ratios",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_junior_weight",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_promisedReturn",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "_time_to_maturity",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "inceptionPrice",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct TrancheFactory.InitParams",
+            "name": "param",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct TrancheFactory.Contracts",
+        "name": "contracts",
+        "type": "tuple"
       }
     ],
     "name": "getPositions",
@@ -244,52 +328,44 @@
       {
         "components": [
           {
-            "internalType": "uint128",
-            "name": "bidCrossId",
-            "type": "uint128"
+            "internalType": "uint256",
+            "name": "priceLower",
+            "type": "uint256"
           },
           {
-            "internalType": "uint128",
-            "name": "askCrossId",
-            "type": "uint128"
+            "internalType": "uint256",
+            "name": "priceUpper",
+            "type": "uint256"
           },
           {
-            "internalType": "uint128",
-            "name": "askLiq",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
-            "name": "bidLiq",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
+            "internalType": "uint256",
             "name": "liquidity",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint256",
-            "name": "feeGrowthInside0LastX128",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "feeGrowthInside1LastX128",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokensOwed0",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokensOwed1",
             "type": "uint256"
           }
         ],
-        "internalType": "struct Position.Info[]",
+        "internalType": "struct tLens.UserLiquidityPositions[]",
+        "name": "",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "claimable",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct tLens.UserLimitPositions[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -522,6 +598,116 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tFactory_ad",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getUserInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "tVaultBal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "seniorBal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "juniorBal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cSeniorBal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cJuniorBal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "seniorDebt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "juniorDebt",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "priceLower",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "priceUpper",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "liquidity",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct tLens.UserLiquidityPositions[]",
+            "name": "liqPositions",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "price",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "claimable",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct tLens.UserLimitPositions[]",
+            "name": "limitPositions",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct tLens.UserInfo",
+        "name": "",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",

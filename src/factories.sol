@@ -11,7 +11,7 @@ import {ERC20} from "./vaults/tokens/ERC20.sol";
 import {Splitter} from "./splitter.sol";
 import {tVault} from "./tVault.sol";
 import {SpotPool} from "./amm.sol"; 
-import {PJSOracle} from "./jsOracle.sol"; 
+import {PJSOracle} from "./oracles/jsOracle.sol"; 
 
 
 /// @notice contract that stores the contracts and liquidity for each tranches 
@@ -104,6 +104,7 @@ contract TrancheFactory{
             );
     }
     mapping(bytes32=>uint256) public vaultIds; 
+
     // step1
     function createVault(
         InitParams memory params, 
@@ -126,12 +127,13 @@ contract TrancheFactory{
         contracts.lendingPool = lendingPoolFactory.deployNewPool(); 
         return vaultId; 
     }   
+
     // step2
     function createSplitterAndPool(uint256 vaultId) external{
         Contracts storage contracts = vaultContracts[vaultId]; 
 
         address splitter = splitterFactory.newSplitter(tVault(contracts.vault), vaultId, tMasterAd); 
-        Splitter(splitter).setTokens(); 
+
         (address junior, address senior) = Splitter(splitter).getTrancheTokens(); 
         address amm = ammFactory.newPool(senior, junior); 
 
@@ -142,6 +144,7 @@ contract TrancheFactory{
         contracts.splitter = splitter;
         contracts.amm = amm; 
     }
+
     // step 3
     function createLendingPools(uint256 vaultId) external{
         (address cSenior, address cJunior) = lendTokenFactory.deployNewCTokens(); 
@@ -150,13 +153,12 @@ contract TrancheFactory{
         contracts.cJunior = cJunior; 
         (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
 
-        PJSOracle newOracle = new PJSOracle(); 
+        PJSOracle newOracle = new PJSOracle(contracts.amm); 
         setUpCTokens(cSenior, cJunior, senior, junior, contracts.lendingPool );
         Comptroller(contracts.lendingPool)._setPriceOracle(newOracle); 
         Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cSenior), 1e18*8/10) ;       
         Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cJunior),  1e18*8/10);  
     }
-
 
     function setUpCTokens(
         address cSenior, 
@@ -331,59 +333,6 @@ contract tLendTokenDeployer{
 
 
 
-contract tLendingPoolDeployerV2 {
-
-    function deployNewPool() public returns(address newPoolAd){
-   
-        Comptroller comp = new Comptroller(); 
-        return address(comp); 
-    }
-
-    function deployNewCTokens( ) public returns(address cSenior, address cJunior){
-        CErc20 senior = new CErc20(); 
-        cSenior = address(senior); 
-        LeverageModule(cSenior).setInitialAdmin(msg.sender); 
-       
-        CErc20 junior = new CErc20(); 
-        cJunior = address(junior); 
-        LeverageModule(cJunior).setInitialAdmin(msg.sender); 
-        
-    }
-
-}
-
-
-    // function setupContracts(
-    //     uint vaultId, 
-    //     InitParams memory param) internal{
-    //     require(tMasterAd != address(0), "trancheMaster not set"); 
-
-    //     tVault newvault = new tVault(param); 
-    //     address splitter = splitterFactory.newSplitter(newvault, vaultId, tMasterAd); 
-    //     Splitter(splitter).setTokens(); 
-    //     (address junior, address senior) = Splitter(splitter).getTrancheTokens(); 
-    //     address amm = ammFactory.newPool(senior, junior); 
-
-    //     // set cTokens
-    //     (address cSenior, address cJunior) = lendTokenFactory.deployNewCTokens(); 
-
-
-    //     Contracts storage contracts = vaultContracts[vaultId]; 
-    //     contracts.vault = address(newvault); 
-    //     contracts.splitter = splitter;
-    //     contracts.amm = amm; 
-    //     contracts.lendingPool = lendingPoolFactory.deployNewPool(); 
-    //     contracts.param = param;
-    //     contracts.cSenior = cSenior; 
-    //     contracts.cJunior = cJunior; 
-
-    //     PJSOracle newOracle = new PJSOracle(); 
-    //     setUpCTokens(cSenior, cJunior, senior, junior, contracts.lendingPool );
-    //     Comptroller(contracts.lendingPool)._setPriceOracle(newOracle); 
-    //     Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cSenior), 1e18*8/10) ;       
-    //     Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cJunior),  1e18*8/10);  
-    //     SpotPool(amm).setLiquidity0(); 
-    // }
 
 
 

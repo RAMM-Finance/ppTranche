@@ -30,6 +30,7 @@ contract tVault is ERC4626{
   uint256 time_to_maturity;
   uint256 public inceptionPrice; 
   ERC20 public want; 
+  uint256 public delta; 
 
   mapping(address=>uint256) addressToIndex; 
   uint256[] initial_exchange_rates; 
@@ -39,12 +40,14 @@ contract tVault is ERC4626{
   address public totalAssetOracle; 
   uint256 public constant maxOracleEntries = 100; 
   uint256 public constant minEntries = 10;
+  uint256 nonce; 
+  mapping(uint256=> OracleEntry) oracleEntries; 
+
   struct OracleEntry{
     uint128 exchangeRate; //pvu
     uint128 supply;  
   }
-  uint256 nonce; 
-  mapping(uint256=> OracleEntry) oracleEntries; 
+
   /// @notice when intialized, will take in a few ERC4626 instruments (address) as base instruments
   /// param _want is the base assets for all the instruments e.g usdc
   /// param _instruments are ERC4626 addresses that will comprise this super vault
@@ -195,7 +198,6 @@ contract tVault is ERC4626{
     return sumAssets + delta.mulWadDown(sumAssets); 
   }
   
-  uint256 public delta; 
   /// @notice stores oracle entries for totalAssets, which is required to compute exchange rates rates
   function storeExchangeRate() public {
     if (block.number == lastBlock) return; 

@@ -43,6 +43,11 @@ contract Splitter{
   uint256 internalPju; 
   uint256 internalPjs; 
   uint256 public escrowedVault; 
+  uint256 baseR_f; 
+
+  mapping(uint256=>mapping(address=>bool)) claimed; 
+  mapping(uint256=> uint256) mintAmounts; 
+  uint256 snapshotId; 
 
   constructor(
     tVault _underlying, //underlying vault token to split 
@@ -60,9 +65,10 @@ contract Splitter{
     underlying.approve(trancheMasterAd, type(uint256).max); 
     lastRecordTime = block.timestamp; 
 
+    setTokens(); 
   } 
 
-  function setTokens() external {
+  function setTokens() internal {
     senior = new tToken(underlying, 
       "senior", 
       string(abi.encodePacked("se_", underlying.symbol())), 
@@ -78,6 +84,7 @@ contract Splitter{
     junior.approve(trancheMasterAd, type(uint256).max); 
   }
 
+  /// @notice take snapshot for dynamic adjustment 
   function doSnapshot(bool up, uint256 mintAmount) public{
     junior._snapshot(); 
     snapshotId =  senior._snapshot(); 
@@ -85,6 +92,7 @@ contract Splitter{
     mintAmounts[snapshotId] = mintAmount; 
   }
 
+  /// @notice 
   function claim(uint256 snapshotId, bool claimSenior) public {
     require(!claimed[snapshotId][msg.sender], "Double Claim"); 
     claimed[snapshotId][msg.sender] = true; 
@@ -96,12 +104,10 @@ contract Splitter{
 
     token.transfer(msg.sender, claimedAmount); 
   }
-  
-  mapping(uint256=>mapping(address=>bool)) claimed; 
-  mapping(uint256=> uint256) mintAmounts; 
-  uint256 snapshotId; 
 
+  /// @notice logic for dynamic adjustment 
   function lowerValueAndIncreaseBalance(bool up, uint256 mintAmount) internal {
+
     // if up, mint more seniors to be claimed by pre snapshot junior holders 
     if(up){
       senior.mint(address(this), mintAmount); 
@@ -110,6 +116,8 @@ contract Splitter{
       uint256 juniorSupply = junior.totalSupply(); 
       junior_weight = juniorSupply.divWadDown(senior.totalSupply() + juniorSupply); 
     }
+
+    // Else, mint more juniors to be claimed by pre snapshot senior holders 
     else{
       junior.mint(address(this), mintAmount); 
 
@@ -123,12 +131,13 @@ contract Splitter{
       junior_weight = juniorSupply.divWadDown(senior.totalSupply() + juniorSupply); 
     }
   }
+
   /// @notice computes current value of senior/junior denominated in underlying 
   /// which is the value that one would currently get by redeeming one senior token
   function computeValuePricesView() public view returns(uint256 psu, uint256 pju, uint256 pjs){
 
     // Get senior redemption price that increments per unit time as usual 
-    uint256 srpPlusOne = inceptionPrice.mulWadDown(promised_return.rpow(elapsedTime, precision));
+    uint256 srpPlusOne = inceptionPrice.mulWadDown((promised_return+baseR_f).rpow(elapsedTime, precision));
     uint256 totalAssetsHeld; 
     uint256 seniorSupply ;
     uint256 juniorSupply ; 
@@ -171,11 +180,12 @@ contract Splitter{
     pjs = pju.divWadDown(psu); 
   }
 
-  function computeValuePrices() public  returns(uint256 psu, uint256 pju, uint256 pjs){
+  function computeValuePrices() public  returns(uint256, uint256, uint256){
     elapsedTime += (block.timestamp - lastRecordTime);
     lastRecordTime = block.timestamp; 
     underlying.storeExchangeRate(); 
-    return computeValuePricesView(); 
+    (internalPsu, internalPju, internalPjs) = computeValuePricesView(); 
+    return (internalPsu, internalPju, internalPjs); 
   }
 
   /// @notice computes implied price of senior/underlying or junior/underlying
@@ -248,37 +258,26 @@ contract Splitter{
     else junior.burn(who, amount); 
   }
 
-
-  function toggleDelayOracle() external{
-    //require(msg.sender == trancheMasterAd); 
-    delayedOracle = delayedOracle? false : true;  
-  }
-
-  /// @notice stores value prices to storage which is going to be used 
-  /// to price the assets in the AMM. 
-  function storeValuePrices() public {
-    (internalPsu, internalPju, internalPjs) = computeValuePrices(); 
-  }
-
   function getStoredValuePrices() public view returns(uint256,uint256, uint256){
     return (internalPsu, internalPju, internalPjs); 
   }
   function getSRP(uint256 time) public view returns(uint256){
     return inceptionPrice.mulWadDown(promised_return.rpow(time, precision)); 
   }
+
+  //// Previleged Functions 
+
+  function toggleDelayOracle() external{
+    delayedOracle = delayedOracle? false : true;  
+  }
+
+  function setBasePromisedReturn(uint256 newR_f) external{
+    baseR_f = newR_f; 
+  }
+
 }
 
 
-// contract tTokenFactory{
-//   function newToken(bool isSenior) external returns(tToken){
-//     string memory name = isSenior? "senior":"junior"; 
-//     string memory sym = isSenior? "se":"ju";
-//     return new tToken(_underlying, 
-//       name, 
-//       string(abi.encodePacked("sym", _underlying.symbol())), 
-//       msg.sender
-//     );
-//   }
-// }
+
 
 

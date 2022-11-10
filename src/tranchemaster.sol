@@ -23,7 +23,8 @@ contract TrancheMaster{
     uint256 constant kpi = 0; 
     bool feePenaltySet; 
     TrancheFactory tFactory;
-
+    bool boundRevert; 
+    uint256 maxDelta; 
     constructor(TrancheFactory _tFactory){
         tFactory = _tFactory; 
         SLIPPAGETOLERANCE = 5e16; //5percent
@@ -356,14 +357,19 @@ contract TrancheMaster{
         ) public returns(uint256 amountIn, uint256 amountOut){
         SwapLocalvars memory vars; 
         setUpLocalSwapVars(vaultId, vars); 
+
+        // Set up automatic price limits 
         if(priceLimit==0) {
             if(toJunior)
                 priceLimit = vars.amm.getCurPrice().mulWadDown(precision + 1e17); 
             else priceLimit = vars.amm.getCurPrice().mulWadDown(precision - 1e17); 
         }
+        
         // Make a trade first so that price after the trade can be used
         (amountIn,  amountOut) =
             vars.amm.takerTrade(msg.sender, toJunior, amount, priceLimit, data);
+
+        checkBoundRevert(vars); 
 
         if(feePenaltySet){
             (uint indexPsu, uint indexPju,  ) = vars.splitter.computeValuePrices(); 
@@ -412,6 +418,8 @@ contract TrancheMaster{
         (amountIn, amountOut) 
             = vars.amm.takerTrade(address(this), toJunior, int256(vars.amountIn), priceLimit, data); 
 
+        checkBoundRevert(vars); 
+
         if(!toJunior) ERC20(vars.senior).transfer(msg.sender, amountOut + vars.seniorAmount );
         else ERC20(vars.junior).transfer(msg.sender, amountOut + vars.juniorAmount);  
 
@@ -446,6 +454,8 @@ contract TrancheMaster{
         uint amountIn = wantSenior? juniorAmount : seniorAmount; 
         (, uint poolamountOut) = vars.amm.takerTrade(address(this), !wantSenior, 
                 int256(amountIn), priceLimit, data); 
+
+        checkBoundRevert(vars); 
 
         if(wantSenior) ERC20(vars.senior).transfer(msg.sender, poolamountOut + seniorAmount );
         else ERC20(vars.junior).transfer(msg.sender, poolamountOut + juniorAmount);  
@@ -496,6 +506,8 @@ contract TrancheMaster{
             (vars.amountIn, vars.amountOut) = vars.amm.takerTrade(address(this), 
             !fromJunior, int256(vars.amountIn), priceLimit, data);  
 
+            checkBoundRevert(vars); 
+
             // New amountIn should account for 
             return(vars.amountOut ,  //2.8
             vars.amountOut.mulWadDown(vars.multiplier), // 6.4
@@ -508,10 +520,23 @@ contract TrancheMaster{
             (vars.amountIn, vars.amountOut) = vars.amm.takerTrade(address(this), 
                 !fromJunior, int256(vars.amountIn), priceLimit, data); 
 
+            checkBoundRevert(vars); 
+
             return(vars.amountOut, // 6.7
                 vars.amountOut.mulWadDown(vars.multiplier), //6.7*3/7
                 amount-vars.amountIn - vars.amountOut.mulWadDown(vars.multiplier)// 10-6.7
             ); 
+        }
+    }
+
+    /// @notice reverts trade when price outside boundary 
+    function checkBoundRevert(SwapLocalvars memory vars) internal {
+        if(boundRevert){
+            (,,uint256 pjs) = vars.splitter.getStoredValuePrices(); 
+            uint256 curPrice = vars.amm.getCurPrice(); 
+            if (pjs.mulWadDown(precision + maxDelta) < curPrice 
+            || pjs.mulWadDown(precision -maxDelta) > curPrice) 
+                revert("Trade out bound"); 
         }
     }
 
@@ -639,40 +664,6 @@ contract TrancheMaster{
         return a <= b ? a : b;
     }
 
-    /// @notice uses the queued dVault positions to redeem, need to loop from current 
-    /// pjs till all amount is filled 
-    function fillQueue(
-        bool fromJunior, 
-        uint256 amount, 
-        uint priceLimit, 
-        uint vaultId, 
-        bytes calldata data
-        ) public returns(uint256 amountIn, uint256 amountOut){
-        // SwapLocalvars memory vars; 
-        // setUpLocalSwapVars(vaultId, vars);
-
-        // redeemByDebtVault()
-    }
-
-    function swapFromTranche() external{}
-    function swapFromInstrument() external {}
-
-    /// @notice when a new tranche is initiated, and trader want senior or junior, can place bids/asks searching for
-    /// a counterparty
-    function freshTrancheNewOrder() external{}
-
-    /// @notice atomic leverage swap from junior to senior or senior to junior
-    /// If senior to junior, need to use junior as collateral and borrow more senior to get more junio
-    /// and vice versa
-    function leverageSwap() external {}
-
-    /// @notice executes arb by pair redeeming
-    /// It will fetch appropriate junior amounts from the debt pool =
-    /// param senior is true if arbitrageur has senior and want junior to pair
-    function arbByPairRedeem(bool senior, uint amount) external {
-        // if(senior) fetchFromDebtPool(junior )
-    }
-
     function assertApproxEqual(uint256 a, uint256 b, uint256 roundlimit) internal pure returns(bool){
 
         return ( a <= b+roundlimit || a>= b-roundlimit); 
@@ -692,514 +683,4 @@ contract TrancheMaster{
 
 
 
-
-
-
-
-
-    /// @notice if is ask, selling junior for senior . if !isAsk, buying junior from senior 
-    /// assumes approval is already set (for now)
-    // function doMakerTrade(
-    //     uint256 vaultId,
-    //     uint256 amount, 
-    //     uint256 isAsk, 
-    //     uint16 point) public{
-    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId);
-    //     (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
-
-    //     if(isAsk){
-    //         ERC20(junior)
-    //         ERC20(junior).approve(contracts.amm, )
-    //         SpotPool(contracts.amm).makerTrade(false, amount, point ); 
-    //         function doLimitSpecifiedPoint(uint256 amountInToBid, bool limitBelow, uint16 point) public {
-    //     }
-    //     if(!limitBelow){
-    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
-    //     (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
-    //     ERC20(junior).approve(contracts.amm, type(uint256).max); 
-    //     SpotPool(contracts.amm).makerTrade( false, amountInToBid, point); 
-    //     }
-    //     else{
-    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(0);
-    //     (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
-    //     ERC20(senior).approve(contracts.amm, type(uint256).max); 
-    //     SpotPool(contracts.amm).makerTrade( true, amountInToBid, point); 
-    //     }
-    // }
-    // }
-
-
-    // /// @notice adds liquidity to pool with vaultId
-    // /// @dev amount is denominated in want of the tVault, so want-> mint tVault-> split -> provide 
-    // function addLiquidity(
-    //     address provider,
-    //      uint amount, 
-    //      uint vaultId) external returns(uint){  
-    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-    //     ERC20 want = ERC20(contracts.param._want); 
-    //     tVault vault = tVault(contracts.vault); 
-    //     StableSwap amm = StableSwap(contracts.amm); 
-    //     Splitter splitter = Splitter(contracts.splitter); 
-
-    //     //Mint tVault
-    //     want.transferFrom(provider, address(this), amount); 
-    //     want.approve(address(vault), amount ); 
-    //     uint shares = vault.convertToShares(amount);
-    //     vault.mint(shares, address(this)); 
-
-    //     //Split 
-    //     vault.approve(address(splitter), shares);
-    //     (uint ja, uint sa) = splitter.split(vault, shares); 
-
-    //     //provide(same amount to get a balanced pool)
-    //     uint lpshares = separatAndProvide(ja, sa, splitter, amm); 
-    //     // uint[2] memory amounts; 
-    //     // amounts[0] = ja; 
-    //     // amounts[1] = ja; 
-    //     // address[] memory tranches = splitter.getTrancheTokens(); 
-    //     // ERC20(tranches[0]).approve(address(amm), sa);
-    //     // ERC20(tranches[1]).approve(address(amm), ja); 
-    //     // uint lpshares = amm.addLiquidity(amounts, 0); 
-
-    //     //Transfer
-    //     tFactory.increaseLPTokenBalance(provider, vaultId, lpshares);
-
-    //     return lpshares; 
-
-    // }
-
-    // function separatAndProvide(uint ja, uint sa, Splitter splitter, StableSwap amm) internal returns(uint){
-    //     uint[2] memory amounts; 
-    //     amounts[0] = ja; 
-    //     amounts[1] = ja; 
-    //     address[] memory tranches = splitter.getTrancheTokens(); 
-    //     ERC20(tranches[0]).approve(address(amm), sa);
-    //     ERC20(tranches[1]).approve(address(amm), ja); 
-    //     uint lpshares = amm.addLiquidity(amounts, 0); 
-    //     return lpshares; 
-    // }
-
-    // /// @notice remove liquidity from the pool, and gives back merged token
-    // function removeLiquidity(
-    //     address taker, 
-    //     uint shares, 
-    //     uint vaultId) external {
-    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-    //     ERC20 want = ERC20(contracts.param._want); 
-    //     tVault vault = tVault(contracts.vault); 
-    //     StableSwap amm = StableSwap(contracts.amm); 
-    //     Splitter splitter = Splitter(contracts.splitter); 
-
-    //     //Transfer
-    //     tFactory.decreaseLPTokenBalance(taker, vaultId, shares); 
-
-    //     //Remove
-    //     uint[2] memory minAmounts;
-    //     minAmounts[0] =0;
-    //     minAmounts[1] =0;
-    //     uint[2] memory amountsOut = amm.removeLiquidity(shares,minAmounts);
-    //     uint junioramount = amountsOut[1]; 
-
-    //     //Merge-> junior and senior in, tVault out to this address
-    //     uint merged_token_amount = splitter.merge(vault, junioramount); 
-
-    //     //Redeem vault 
-    //     vault.redeem(merged_token_amount, taker, address(this)); 
-
-    // }
-
-
-
-    // /// @notice buy tranche token in one tx from underlying tVault collatera; 
-    // /// @param amount is collateral in 
-    // /// @dev 1.Mints vault token
-    // /// 2. Splits Vault token from splitter 
-    // /// 3. Swap unwanted tToken to wanted tToken
-    // /// 4. Transfer wanted tToken to user 
-    // function buy_tranche(
-    //     uint vaultId, 
-    //     uint amount, 
-    //     bool wantSenior
-    //     ) external returns(uint)
-    // {
-    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-    //     ERC20 want = ERC20(contracts.param._want); 
-    //     tVault vault = tVault(contracts.vault); 
-    //     StableSwap amm = StableSwap(contracts.amm); 
-    //     Splitter splitter = Splitter(contracts.splitter); 
-
-    //     //1.Mint
-    //     want.transferFrom(msg.sender, address(this), amount); 
-    //     want.approve(address(vault), amount); 
-    //     uint shares = vault.convertToShares(amount); 
-    //     vault.mint(shares, address(this));
-
-    //     //2. Split
-    //     vault.approve(address(splitter), shares); 
-    //     (uint ja, uint sa) = splitter.split(vault, shares); //junior and senior now minted to this address 
-
-    //     //Senior tokens are indexed at 0 in each amm 
-    //     uint tokenIn = wantSenior? 1 : 0;
-    //     uint tokenOut = 1-tokenIn; 
-    //     uint tokenInAmount = wantSenior? ja: sa; 
-    //     address[] memory tranches = splitter.getTrancheTokens(); 
-
-    //     //3. Swap 
-    //     ERC20(tranches[tokenIn]).approve(address(amm), tokenInAmount); 
-    //     uint tokenOutAmount = amm.swap(tokenIn, tokenOut, tokenInAmount, 0); //this will give this contract tokenOut
-
-    //     //4. Transfer 
-    //     uint transferamount = wantSenior? sa: ja; 
-    //     ERC20(tranches[tokenOut]).transfer(msg.sender, transferamount + tokenOutAmount); 
-    //     return transferamount + tokenOutAmount; 
-
-    // }
-
-    // /// @notice sell tranche token for collateral in one tx
-    // /// 1. Transfer tToken 
-    // /// 2. Swap tTokens to get in correct ratio
-    // function sell_tranche(
-    //     uint vaultId, 
-    //     uint amount, 
-    //     bool isSenior 
-    //     ) external 
-    // {
-    //     TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
-    //     ERC20 want = ERC20(contracts.param._want); 
-    //     tVault vault = tVault(contracts.vault); 
-    //     StableSwap amm = StableSwap(contracts.amm); 
-    //     Splitter splitter = Splitter(contracts.splitter); 
-
-    //     //1. Transfer tToken to this contract
-    //     address[] memory tranches = splitter.getTrancheTokens(); 
-    //     uint tokenIn = isSenior? 0:1; 
-    //     ERC20(tranches[tokenIn]).transfer(msg.sender, amount); 
-
-    //     //2. Swap to get correct ratio, if intoken is senior then need junior, 
-    //     (uint pairTokenAmount, uint swappedTokenAmount) = swapToRatio(amount, !isSenior, tranches, vault, amm); 
-    //     uint amountAfterSwap =  amount - swappedTokenAmount; 
-    //     //amountAfterSwap, pairTokenAmount should be the amount of tranche tokens in ratio 
-
-    //     //3.Merge the tokens (merged tVault token will be directed to this contract)
-    //     uint junior_amount = isSenior? pairTokenAmount: swappedTokenAmount;  
-    //     uint totalAmountMerged = splitter.merge(vault, junior_amount); 
-
-    //     //4.Redeem merged token in tVault  
-    //     vault.redeem(totalAmountMerged, msg.sender, address(this)); 
-
-
-    // }
-
-    // /// @notice swap portion of tToken to another to get the correct ratio
-    // /// e.x 100 junior-> 30 senior, 70 junior, when ratio is 3:7
-    // function swapToRatio(
-    //     uint tokenInAmount, 
-    //     bool needSenior,
-    //     address[] memory tranches,
-    //     tVault vault, 
-    //     StableSwap amm) internal returns(uint, uint){
-    
-    //     //get swapping Token index; if senior is needed swap junior
-    //     uint tokenInIndex = needSenior? 1:0;
-    //     uint tokenOutIndex = 1- tokenInIndex; 
-    //     address neededToken = tranches[tokenOutIndex]; 
-    //     address swappingToken = tranches[tokenInIndex]; 
-    //     uint junior_weight = vault.getJuniorWeight();
-    //     uint PRICE_PRECISION = vault.PRICE_PRECISION();   
-        
-    //     //ex. 100j -> 30j, 70s (determined by ratio)
-    //     // need x amount of juniors for 70s 
-    //     uint neededTokenOutAmount; 
-    //     if (needSenior)  neededTokenOutAmount = (PRICE_PRECISION - junior_weight) * tokenInAmount; 
-    //     else  neededTokenOutAmount = junior_weight * tokenInAmount; 
-
-    //     //Get how much tokenInAmount I need to get needed tokenoutAmount 
-    //     uint neededTokenInAmount = amm.getDx(neededTokenOutAmount, tokenInIndex); 
-    //     uint TokenOutAmount = amm.swap(tokenInIndex, tokenOutIndex, neededTokenInAmount,0 ); 
-    //     //Now this contract has the neededTokenAmountOut tokens
-
-    //     return (TokenOutAmount, neededTokenInAmount);
-    // }
-
-
-// library Debt{
-
-//     struct dVaultPosition{
-//         // amount of minted dVault 
-//         uint256 dVaultAmount; 
-
-//         // amount of tranche token that was used to mint dVault, using this pTv can be inferred
-//         uint256 trancheAmount; 
-//     }
-
-//     struct DebtData{
-//         // d or c stands for debt Or credit 
-//         uint256 juniorDorc; 
-//         uint256 seniorDorc; 
-//     }
-
-//     function add(
-//         mapping(bytes32=> uint256) storage self, 
-//         uint256 vaultId, 
-//         address creator,
-//         bool isSenior, 
-//         uint256 pjs, 
-//         uint256 dVaultAmount
-//         ) internal{
-//         self[keccak256(abi.encodePacked(vaultId, creator,isSenior, pjs))] = dVaultAmount; 
-//     }
-
-//     function get(
-//         mapping(bytes32=> uint256) storage self, 
-//         uint256 vaultId, 
-//         address creator, 
-//         bool isSenior, 
-//         uint256 pjs
-//         ) internal view returns(uint256){
-//         return self[keccak256(abi.encodePacked(vaultId, creator, isSenior, pjs))]; 
-//     }
-// }
-// library Queues{
-
-//    function addDelta(uint128 x, int128 y) internal pure returns (uint128 z) {
-//         if (y < 0) {
-//             require((z = x - uint128(-y)) < x, 'LS');
-//         } else {
-//             require((z = x + uint128(y)) >= x, 'LA');
-//         }
-//     }
-
-//     // Data for single queue slot 
-//     struct QueueSlot{
-//         uint128 startQueueAmount; 
-//         uint128 remainingQueueAmount;
-//     }
-
-//     // Manages an array of queueSlots
-//     struct Queue{
-//         uint128 first; 
-//         uint128 last; 
-//     }
-
-//     function enqueue(
-//         mapping(uint128 => Queues.QueueSlot) storage self, 
-//         Queue storage queue, 
-//         QueueSlot memory data) public {
-//         queue.last += 1;
-
-//         self[queue.last] = data;
-//     }
-
-//     function dequeue(
-//         mapping(uint128 => Queues.QueueSlot) storage self,
-//         Queue storage queue
-//         ) public {
-//         Queue memory _queue = queue; 
-//         assert(_queue.last >= _queue.first + 1);  // non-empty queue
-//         delete self[_queue.first];
-//         queue.first += 1;
-//     }
-
-//     /// @notice gets address indexed queueslot
-//     function get(
-//         mapping(bytes32=> Queues.QueueSlot) storage self, 
-//         address maker, 
-//         bool isSenior 
-//         ) internal returns(QueueSlot storage){
-//         return self[keccak256(abi.encodePacked(maker, isSenior))]; 
-//     }
-
-//     function update(
-//         QueueSlot storage self,
-//         int128 amount) internal {
-//         self.remainingQueueAmount = addDelta(self.remainingQueueAmount, amount); 
-//     }
-
-//     function len(Queue storage self) internal view returns(uint256){
-//         Queue memory _queue = self; 
-//         assert(_queue.last >= _queue.first + 1);  // non-empty queue
-//         unchecked { return uint256(_queue.last- (_queue.first + 1)); }
-//     }
-
-
-
-//    using Queues for mapping(bytes32=> Queues.QueueSlot); 
-//     using Queues for mapping(uint128 => Queues.QueueSlot); 
-//     using Queues for Queues.Queue; 
-//     using Queues for Queues.QueueSlot; 
-
-//     struct QueueData{
-//         mapping(bytes32=> Queues.QueueSlot) positions; //queueslots indexed by address
-//         mapping(uint128 => Queues.QueueSlot) map;// queueslots indexed by numbers
-//         Queues.Queue indexData; 
-//     }
-
-//     mapping(uint256=> QueueData) public JuniorQueue; //per vault
-//     mapping(uint256=> QueueData) public SeniorQueue; //per vault
-//     uint256 constant MAXSIZE = 100; 
-
-//     /// @notice create queue bids to be filled 
-//     function addNewQueue(
-//         uint256 vaultId, 
-//         bool isSenior, 
-//         uint256 amount
-//         ) external {
-//         QueueData storage data = isSenior? SeniorQueue[vaultId] : JuniorQueue[vaultId]; 
-
-//         Queues.QueueSlot storage queueSlot 
-//                 = data.positions.get(msg.sender, isSenior); 
-
-//         queueSlot.remainingQueueAmount = uint128(amount); //TODO safecast 
-//         queueSlot.startQueueAmount = uint128(amount); 
-
-//         // Push new slot to front 
-//         data.map.enqueue(queueSlot, data.indexData); 
-        
-//         // Get rid of oldest slot  
-//         if(data.indexData.last >= MAXSIZE) 
-//             data.map.dequeue(data.indexData); 
-
-//         // Escrow funds 
-//         Splitter splitter = tFactory.getContracts(vaultId).splitter; 
-//         if(isSenior) ERC20(splitter.getTrancheTokens()[0]).transferFrom(msg.sender,address(this), amount); 
-//         else ERC20(splitter.getTrancheTokens()[1]).transferFrom(msg.sender,address(this), amount);
-//     }
-
-//     struct Fillvars{
-//         uint256 len; 
-//         uint256 junior_weight; 
-//         uint256 multiplier; 
-//         uint256 amountRemaining; 
-//         uint256 filled;
-
-//         uint256 pTv; //price of tranche/vault
-//         uint256 pju;
-//         uint256 psu; 
-//         uint256 pjs;  
-
-//         address senior;
-//         address junior; 
-
-//         uint128 i; 
-
-//         uint256 totalRedeemed; 
-//         uint256 fillerShare;
-//         uint256 filleeShare; 
-//         uint256 arbitrageProfit
-//     }
-
-//     /// @notice fill queues and do arb
-//     /// ifSenior, the queuelist is junior, and the filler is senior specified in amouunt 
-//     function fillQueue(
-//         uint256 vaultId, 
-//         bool isSenior, 
-//         uint256 amount,
-//         uint256 markPrice
-//         ) external {
-//         QueueData storage data = isSenior? JuniorQueue[vaultId] : SeniorQueue[vaultId]; 
-//         Fillvars memory vars; 
-//         Splitter splitter = tFactory.getContracts(vaultId).splitter; 
-
-//         vars.junior_weight = splitter.junior_weight();
-//         vars.len = data.indexData.len();
-//         vars.i = data.indexData.first; 
-//         vars.amountRemaining = amount; 
-//         vars.multiplier = isSenior ? junior_weight.divWadDown(precision - junior_weight)
-//                                   : (precision - junior_weight).divWadDown(junior_weight);
-        
-//         while (vars.amountRemaining != 0 || vars.i < vars.len){
-
-//             vars.amountRemaining -= fillQueueSlot(data.map[vars.i],
-//                  vars.amountRemaining.mulWadDown(vars.multiplier));
-//             vars.i++;
-//         }
-
-//         // amount of isSenior filled 
-//         vars.filled = amount - vars.amountRemaining; 
-
-//         (vars.senior, vars.junior) = splitter.getTrancheTokens();
-
-//         // Merge, this will spit back vault here 
-//         if(isSenior) {
-//             uint256 junior_amount = vars.filled.mulWadDown(vars.multiplier); 
-//             ERC20(vars.senior).approve(address(splitter), vars.filled); 
-//             ERC20(vars.junior).approve(address(splitter), junior_amount); 
-//             splitter.merge(junior_amount);
-//         }
-
-//         // convert senior amount to junior amount
-//         else {
-//             ERC20(vars.junior).approve(address(splitter), vars.filled); 
-//             ERC20(vars.senior).approve(address(splitter), vars.filled.mulWadDown(vars.multiplier)); 
-//             splitter.merge(vars.filled); 
-//         }
-
-//         // get pjv(and psv), the exchange rate of junior/vault which is pju/pvu 
-//         (vars.pju, vars.psu, vars.pjs) = splitter.computeValuePrices();
-//         vars.pvu  = splitter.underlying().queryExchangeRateOracle(); 
-//         vars.pTv = isSenior? vars.psu.divWadDown(vars.pvu) : vars.pju.divWadDown(vars.pvu);
-
-//         // isSenior, 106 seniors are filling a queue of 45 juniors 
-//         vars.totalRedeemed = vars.filled + vars.filled.mulWadDown(vars.multiplier); 
-//         vars.fillerShare = vars.pTv.mulWadDown(vars.filled); // 1 senior/junior is worth pTv of vault  
-//         vars.filleeShare = totalRedeemed - fillerShare; 
-
-//         // get arbitrage profit for filler, from markPrice vs Pjs
-//             {
-//                 uint256 tranchePurchased = vars.filled.divWadDown(precision 
-//                     + vars.multiplier.mulWadDown(markPrice));
-//                 uint256 trancheFromValue = tranchePurchased.mulWadDown(
-//                     precision + vars.multiplier.mulWadDown(vars.pTv)); 
-
-//                 // Arbitrage profit denominated in trancheToken  
-//                 vars.arbitrageProfit = vars.filled - trancheFromValue; 
-//             } 
-
-//         // return to filler/fillee his share of vault 
-//         vars.fillerShare -= vars.arbitrageProfit.mulWadDown(precision - _getFillerShare(vaultId)); 
-//         vars.filleeShare += vars.arbitrageProfit.mulWadDown(precision - _getFillerShare(vaultId)); 
-
-//     }
-
-//     /// @notice fill single queue, so amount stored in queue should decrease by param amount
-//     function fillQueueSlot(
-//         Queues.QueueSlot storage queue, 
-//         uint256 amount
-//         ) internal returns(uint256 filledAmount){
-//         if (queue.queueAmount >= amount) {
-//             queue.update(-int128(amount)); 
-//             filledAmount = amount; 
-//         }   
-//         else {
-//             queue.update(-int128(queue.queueAmount)); 
-//             removeQueue(queue); 
-//             filledAmount = queue.queueAmount; 
-//         } 
-//     }
-
-//     function removeQueue(Queues.QueueSlot memory queue ) external{
-//         delete queueSlots[queue.idx]; 
-//     }
-
-//     function modifyQueue() external{}
-
-//     function setFillerShare(uint256 vaultId, uint256 newFillerShare) external {
-//         fillerShareDelta[vaultId] = newFillerShare; 
-//     }
-//     function setDefaultFillerShare(uint256 newDefaultFillerShare) external{
-//         defaultFillerShare = newDefaultFillerShare; 
-//     }
-//     function _getFillerShare(uint256 vaultId) internal {
-//         defaultFillerShare + fillerShareDelta[vaultId]; 
-//     }
-
-
-//     mapping(uint256=>uint256) public fillerShareDelta; 
-//     uint256 defaultFillerShare; 
-
-
-// }
-    // mapping(uint256=> mapping(bytes32=> Queues.QueueSlot)) public QueuePositions; //vaultId=> address indexed queueslot
-    // mapping(uint256=> mapping(uint128 => Queues.QueueSlot)) public QueueMap; //vaultId=> queue
-    // mapping(uint256=> Queues.Queue) public Queue; 
 

@@ -24,6 +24,24 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "snapshotId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "claimSenior",
+        "type": "bool"
+      }
+    ],
+    "name": "claim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "markPjs",
         "type": "uint256"
       }
@@ -50,17 +68,17 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "psu",
+        "name": "",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "pju",
+        "name": "",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "pjs",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -88,6 +106,24 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "up",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "mintAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "doSnapshot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -337,13 +373,6 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "storeValuePrices",
-    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

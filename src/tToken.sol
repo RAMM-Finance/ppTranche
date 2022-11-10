@@ -14,16 +14,18 @@ import "./vaults/utils/oz.sol";
 
 /// @notice tokens for junior/senior tranches 
 contract tToken is ERC20{
+    using Arrays for uint256[];
+    using Counters for Counters.Counter;
 
-  modifier onlySplitter() {
-    require(msg.sender == splitter, "!Splitter");
-    _;
-    }
+     modifier onlySplitter() {
+        require(msg.sender == splitter, "!Splitter");
+        _;
+        }
 
     address splitter; 
     ERC20 asset; 
 
-  /// @notice asset is the tVault  
+    /// @notice asset is the tVault  
     constructor(
         ERC20 _asset, 
         string memory _name,
@@ -56,12 +58,6 @@ contract tToken is ERC20{
             ); 
         _burn(address(receiver), amount); 
     }
-
-
-
-
-    using Arrays for uint256[];
-    using Counters for Counters.Counter;
 
     // Snapshotted values have arrays of ids and the value corresponding to that id. These could be an array of a
     // Snapshot struct, but that would impede usage of functions that work on an array.
@@ -175,8 +171,6 @@ contract tToken is ERC20{
             return ids[ids.length - 1];
         }
     }
-
-
 
 }
 
