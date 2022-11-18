@@ -10,7 +10,7 @@ import {TrancheFactory} from "./factories.sol";
 import "forge-std/console.sol";
 
 interface iTotalAssetOracle{
-  function getExchangeRate() external returns(uint256); 
+  function getExchangeRate() external view returns(uint256); 
 }  
 
 /// @notice super vault that accepts any combinations of ERC4626 instruments at initialization, and will
@@ -21,19 +21,25 @@ contract tVault is ERC4626{
   using SafeTransferLib for ERC20;
   using FixedPointMathLib for uint256;
 
-  uint256 num_instrument; 
-  uint256[] ratios; 
-  address[] instruments; 
-  uint256 init_time; 
-  uint256 public junior_weight; 
-  uint256 promisedReturn; 
-  uint256 time_to_maturity;
-  uint256 public inceptionPrice; 
-  ERC20 public want; 
-  uint256 public delta; 
+  string public assetName; 
+  string public underlyingName; 
 
-  mapping(address=>uint256) addressToIndex; 
-  uint256[] initial_exchange_rates; 
+  // Underlying asset to denominate totalassets in 
+  ERC20 public want; 
+
+  // Params
+  uint256 num_instrument; 
+  uint256[] public  ratios; 
+  address[] public  instruments; 
+  uint256 public junior_weight; 
+  uint256 public promisedReturn; 
+  uint256 public inceptionTime;
+  uint256 public inceptionPrice; 
+  uint256 public delta; 
+  bool assetIsErc20; // false if asset is 4626
+  string[] public  names; 
+  string public  descriptions; 
+
   uint256 public immutable PRICE_PRECISION; 
 
   uint256 lastBlock; 
@@ -48,6 +54,7 @@ contract tVault is ERC4626{
     uint128 supply;  
   }
 
+  address public immutable creator; 
   /// @notice when intialized, will take in a few ERC4626 instruments (address) as base instruments
   /// param _want is the base assets for all the instruments e.g usdc
   /// param _instruments are ERC4626 addresses that will comprise this super vault
@@ -57,34 +64,51 @@ contract tVault is ERC4626{
   /// and tranche tokens can be redeemed separately 
   /// param _promisedReturn is the promised senior return gauranteed by junior holders 
   constructor(
-    TrancheFactory.InitParams memory param
+    TrancheFactory.InitParams memory param, 
+    address _creator, 
+    string[] memory _names, 
+    string memory _descriptions
     )
     ERC4626(
         ERC20(param._want),
-
-        "hh","hh"
-       // string(abi.encodePacked("super ", " Vault")),
-        //string(abi.encodePacked("t", " Vault"))
+        string(abi.encodePacked(ERC20(param._want).name(), " tVault")),
+        string(abi.encodePacked(ERC20(param._want).name(), " tVault"))
     ) {
+      require(param._ratios.length == param._instruments.length, "Incorrect num ratios"); 
       want = ERC20(param._want); 
       instruments = param._instruments; 
       num_instrument = param._instruments.length; 
       ratios = param._ratios; 
       junior_weight = param._junior_weight; 
       promisedReturn = param._promisedReturn; 
-      time_to_maturity = param._time_to_maturity; 
+      inceptionTime = block.timestamp; 
       inceptionPrice = param.inceptionPrice; 
-      init_time = block.timestamp;
+      names = _names; 
+      descriptions = _descriptions; 
 
-      initial_exchange_rates = new uint[](num_instrument); 
       PRICE_PRECISION = 10**18; 
 
       lastBlock = block.number; 
+
+      creator = _creator; 
+
+      uint256 totalRatio; 
+      for (uint i =0; i< ratios.length ; i++){
+        totalRatio += ratios[i];
+      }
+      require(totalRatio == PRICE_PRECISION, "Incorrect ratios"); 
   }
 
-  function setOracle(address newOracle) public {
+  /// @notice tranche creator can specify oracle
+  /// If the creator can set oracle at anytime, he can manipulate markets 
+  /// so only set at beginning 
+  function setExchangeRateOracle(address newOracle, bool _assetIsErc20) public {
+   // require(msg.sender == creator && totalAssetOracle == address(0), 
+     //   "only creator can set oracle at inception"); 
     totalAssetOracle = newOracle; 
+    assetIsErc20 = _assetIsErc20; 
   }
+
 
   /// @notice will automatically invest into the ERC4626 instruments and give out 
   /// vault tokens as share
@@ -94,10 +118,26 @@ contract tVault is ERC4626{
 
     asset.safeTransferFrom(msg.sender, address(this), assets);
 
-    invest(shares); 
+    if(!assetIsErc20) invest(shares); 
 
     _mint(receiver, shares);
     emit Deposit(msg.sender, receiver, assets, shares);
+    afterDeposit(assets, shares);
+  }
+
+  function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
+    // Check for rounding error since we round down in previewDeposit.
+    require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
+
+    // Need to transfer before minting or ERC777s could reenter.
+    asset.safeTransferFrom(msg.sender, address(this), assets);
+
+    if(!assetIsErc20) invest(shares); 
+
+    _mint(receiver, shares);
+
+    emit Deposit(msg.sender, receiver, assets, shares);
+
     afterDeposit(assets, shares);
   }
 
@@ -116,12 +156,36 @@ contract tVault is ERC4626{
     // Check for rounding error since we round down in previewRedeem.
     require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
 
-    divest(assets); 
+    if(!assetIsErc20) divest(assets); 
 
     beforeWithdraw(assets, shares);
     _burn(owner, shares);
 
     emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    asset.safeTransfer(receiver, assets);
+  }
+
+  function withdraw(
+      uint256 assets,
+      address receiver,
+      address owner
+  ) public override returns (uint256 shares) {
+    shares = previewWithdraw(assets); // No need to check for rounding error, previewWithdraw rounds up.
+
+    if (msg.sender != owner) {
+        uint256 allowed = allowance[owner][msg.sender]; // Saves gas for limited approvals.
+
+        if (allowed != type(uint256).max) allowance[owner][msg.sender] = allowed - shares;
+    }
+
+    if(!assetIsErc20) divest(assets); 
+
+    beforeWithdraw(assets, shares);
+
+    _burn(owner, shares);
+
+    emit Withdraw(msg.sender, receiver, owner, assets, shares);
+
     asset.safeTransfer(receiver, assets);
   }
 
@@ -160,7 +224,6 @@ contract tVault is ERC4626{
   function getStoredReturnData(uint256 pastNBlock) public view returns(uint256, uint256, uint256){
     // storeExchangeRate() ; 
     //require(nonce>= minEntries, "Not enough entries"); 
-
     uint256 sumSupply; 
     uint256 sumTotalAssets; 
     uint256 num_records;
@@ -178,15 +241,11 @@ contract tVault is ERC4626{
       sumTotalAssets+= uint256(oracleEntries[0].supply).mulWadDown(uint256(oracleEntries[0].exchangeRate)); 
       num_records++; 
     }  
-            // console.log('sum',sumTotalAssets); 
 
     return (sumSupply/num_records,sumTotalAssets/num_records, num_records); 
   }
 
-  /// @notice sums over all assets in want tokens 
-  /// need to get the shares this vault has for each instrument 
-  /// and convert that to assets 
-  function totalAssets() public view override returns (uint256){
+  function totalAssetsERC4626() public view returns(uint256){  
     uint256 sumAssets; 
     uint256 shares; 
     for (uint i=0; i< num_instrument; i++){
@@ -194,20 +253,44 @@ contract tVault is ERC4626{
         shares = ERC4626(instruments[i]).balanceOf(address(this));
         sumAssets += ERC4626(instruments[i]).convertToAssets(shares); 
     }
-    // return sumAssets; 
+    // delta to be used for governance set buffers 
     return sumAssets + delta.mulWadDown(sumAssets); 
+  }
+
+  /// @notice sums over all assets in want tokens 
+  /// need to get the shares this vault has for each instrument 
+  /// and convert that to assets 
+  function totalAssets() public view override returns (uint256){
+    if (!assetIsErc20) return totalAssetsERC4626(); 
+    
+    else{
+      // 1:1 wrapper if erc20 
+      return totalSupply; 
+    }
+  }
+
+  /// @notice totalassets oracle for accounting, 1:1 for ERC20
+  function totalAssetsOracle() public view returns(uint256){
+    if(!assetIsErc20) return totalAssetsERC4626(); 
+    else{
+      require(totalAssetOracle != address(0), "No oracle"); 
+      return iTotalAssetOracle(totalAssetOracle).getExchangeRate().mulWadDown(totalSupply); 
+    }
   }
   
   /// @notice stores oracle entries for totalAssets, which is required to compute exchange rates rates
   function storeExchangeRate() public {
-    if (block.number == lastBlock) return; 
+    if (block.number == lastBlock || assetIsErc20) return; 
 
-    if (totalAssetOracle != address(0)) 
-      oracleEntries[nonce%maxOracleEntries] = OracleEntry(
-        iTotalAssetOracle(totalAssetOracle).getExchangeRate().safeCastTo128(), totalSupply.safeCastTo128()); 
+    if (totalAssetOracle != address(0)){
 
-    else oracleEntries[nonce%maxOracleEntries] = OracleEntry(previewMint(PRICE_PRECISION).safeCastTo128()
-      , totalSupply.safeCastTo128()); 
+      oracleEntries[nonce%maxOracleEntries] 
+        = OracleEntry(iTotalAssetOracle(totalAssetOracle).getExchangeRate().safeCastTo128(), 
+            totalSupply.safeCastTo128()); }
+
+    else oracleEntries[nonce%maxOracleEntries] 
+      = OracleEntry(previewMint(PRICE_PRECISION).safeCastTo128()
+          , totalSupply.safeCastTo128()); 
 
     nonce++; 
     lastBlock = block.number; 
@@ -232,103 +315,10 @@ contract tVault is ERC4626{
   function getPromisedReturn() public view returns(uint256){
     return promisedReturn; 
   }
-  function getInitialExchangeRates() public view returns(uint[] memory){
-      return initial_exchange_rates; 
+  function getNames() public view returns(string[] memory){
+    return names; 
   }
 
 
 
-
-
-  uint256 public constant oracle_freq = 1; //set default as 1 which is just getting last block's exchange rate (only prevents atomic tx attacks)
-  mapping(uint256=>uint256[oracle_freq]) stored_exchange_rates; //instrument index-> exchange rates 
-  mapping(address=>address) priceOracles; 
-
-
- 
-
-
-
-
-  /// @notice implement typical oracle based attacks preventions: medianize+delay 
-  /// @dev automatically checkpoints the accumulator value every time
-  /// the pool/amm/vault is touched the first time in a block, cycling through 
-  /// an array where if full the old one is replaced. 
-  function store_exchange_rate() public returns(uint256){
-
-    address ins;
-    // store current block number to ensure that the redemption price is 
-    // calculated at least 1 block after last store
-    lastBlock = block.number; 
-
-    // Store exchange rates internally for all instruments 
-    for (uint j = 0; j< num_instrument; j++) {
-      ins = instruments[j]; 
-
-      uint[oracle_freq] storage exchange_rate = stored_exchange_rates[addressToIndex[ins]]; 
-
-      if (exchange_rate.length > 1){
-        for (uint i = 0; i < exchange_rate.length-1; i++){
-          exchange_rate[i] = exchange_rate[i+1]; 
-        }
-        exchange_rate[exchange_rate.length-1] = get_fresh_exchange_rate(j);
-      }
-      else{
-        exchange_rate[0] = get_fresh_exchange_rate(j); 
-      }
-    }
-
-  }
-
-  /// @notice function that checks whether function caller can 
-  /// update the exchange rate
-  function exchange_rate_hook() public{
-    if(lastBlock < block.number){
-      store_exchange_rate(); 
-    }
-    return; 
-  }
-
-  /// @notice get the amount of shares for the instrument one would obtain
-  /// by depositing one want token.
-  /// @dev care needs to be taken when implementing this to prevent oracle-based attacks
-  function get_fresh_exchange_rate(uint256 instrument_id) internal view returns(uint256){
-    // check if default oracle or not
-    address instrument = instruments[instrument_id]; 
-    if (priceOracles[instrument] == address(0)) 
-     return ERC4626(instrument).previewDeposit(PRICE_PRECISION); 
-
-    else{
-     // priceOracles[instrument].call(data)
-    }
-  }
-  /// @notice get average real returns collected by the vault in this supervault until now  
-  /// real return is computed by (final_value_of_vault/initial_value_of_vault) - 1
-  /// @dev exchange rate is stored in previous blocks
-  function getCurrentRealReturn() public view returns(uint256){
-    uint[] memory real_returns = new uint256[](num_instrument); 
-    uint sum_return; 
-    for (uint i=0; i< num_instrument; i++){
-      real_returns[i] = get_exchange_rate(instruments[i])
-                        .mulDivDown(PRICE_PRECISION, initial_exchange_rates[i]); 
-
-      sum_return += real_returns[i] - PRICE_PRECISION; 
-   }
-   return (sum_return/num_instrument); 
-  }
-
-  /// @notice get the amount of shares for the instrument one would obtain
-  /// by depositing one want token.
-  /// @dev care needs to be taken when implementing this to prevent oracle-based attacks
-  function get_exchange_rate(address instrument) internal view returns(uint256){
-    require(block.number >= lastBlock+1, "Non atomic");
-
-    // if oracle_freq == 1
-    return stored_exchange_rates[addressToIndex[instrument]][oracle_freq-1]; 
-  }
-
-  function isMatured() public view returns(bool){
-    return true; 
-    //return (block.timestamp - init_time) > time_to_maturity; 
-  }
 }

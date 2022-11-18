@@ -12,7 +12,7 @@ import {Splitter} from "./splitter.sol";
 import {tVault} from "./tVault.sol";
 import {SpotPool} from "./amm.sol"; 
 import {PJSOracle} from "./oracles/jsOracle.sol"; 
-
+import {OracleJSPool} from "./oracleAMM.sol"; 
 
 /// @notice contract that stores the contracts and liquidity for each tranches 
 contract TrancheFactory{
@@ -27,6 +27,7 @@ contract TrancheFactory{
     TrancheAMMFactory ammFactory; 
     SplitterFactory splitterFactory; 
     WhitePaperInterestRateModel interestRateModel; 
+    OracleAMMFactory oracleAMMFactory; 
 
     /// @notice initialization parameters for the vault
     struct InitParams{
@@ -35,9 +36,10 @@ contract TrancheFactory{
         uint256[]  _ratios;
         uint256 _junior_weight; 
         uint256 _promisedReturn; //per time 
-        uint256 _time_to_maturity;
+        uint256 inceptionTime;
         uint256 vaultId; 
         uint256 inceptionPrice; 
+        bool oracleAMM; 
     }
 
     struct Contracts{
@@ -59,18 +61,18 @@ contract TrancheFactory{
         address ammFactory_address, 
         address splitterFactory_address, 
         address lendingPoolFactory_address,
-        address lendTokenFactory_address
+        address lendTokenFactory_address, 
+        address oracleAMMFactory_address
     ) public {
         owner = _owner;
         ammFactory = TrancheAMMFactory(ammFactory_address); 
         splitterFactory = SplitterFactory(splitterFactory_address); 
         lendingPoolFactory = tLendingPoolDeployer(lendingPoolFactory_address); 
         lendTokenFactory = tLendTokenDeployer(lendTokenFactory_address); 
-
+        oracleAMMFactory = OracleAMMFactory(oracleAMMFactory_address); 
         interestRateModel = new WhitePaperInterestRateModel(
             1e18,1e18); 
     }
-
 
     /// @notice adds vaults, spllitters, and amms when tranche bids are filled 
     /// Bidders have to specify the 
@@ -88,9 +90,10 @@ contract TrancheFactory{
         uint256[] calldata _ratios,
         uint256 _junior_weight, 
         uint256 _promisedReturn, //per time 
-        uint256 _time_to_maturity,
+        uint256 inceptionTime,
         uint256 vaultId,
-        uint256 inceptionPrice
+        uint256 inceptionPrice, 
+        bool oracleAMM
         ) public returns(InitParams memory){
         return InitParams(
          _want,
@@ -98,13 +101,15 @@ contract TrancheFactory{
          _ratios,
          _junior_weight, 
          _promisedReturn, //per time 
-         _time_to_maturity,
+         inceptionTime,
          vaultId,
-         inceptionPrice
-            );
+         inceptionPrice, 
+         oracleAMM 
+        );
     }
     mapping(bytes32=>uint256) public vaultIds; 
 
+    /// @notice need to separate deployments due to gas limits 
     // step1
     function createVault(
         InitParams memory params, 
@@ -113,11 +118,11 @@ contract TrancheFactory{
         require(tMasterAd != address(0), "trancheMaster not set"); 
         uint vaultId = id; 
         params.vaultId = vaultId; 
-        // setupContracts(vaultId, params); 
+
         vaultCreated[vaultId] = true; 
         id++ ; 
 
-        tVault newvault = new tVault(params); 
+        tVault newvault = new tVault(params, msg.sender, names, _description); 
         Contracts storage contracts = vaultContracts[vaultId]; 
         contracts.vault = address(newvault); 
         contracts.param = params;
@@ -131,15 +136,24 @@ contract TrancheFactory{
     // step2
     function createSplitterAndPool(uint256 vaultId) external{
         Contracts storage contracts = vaultContracts[vaultId]; 
+        require(contracts.vault != address(0), "incorrect vaultId"); 
 
         address splitter = splitterFactory.newSplitter(tVault(contracts.vault), vaultId, tMasterAd); 
 
         (address junior, address senior) = Splitter(splitter).getTrancheTokens(); 
-        address amm = ammFactory.newPool(senior, junior); 
 
-        // set initial price to 1, liq to 0 
-        SpotPool(amm).setPriceAndPoint(uint256(1e18)); 
-        SpotPool(amm).setLiquidity0(); 
+        address amm; 
+        if(contracts.param.oracleAMM){
+            amm = oracleAMMFactory.newPool(senior, junior, contracts.param._want, splitter, contracts.vault);
+
+        }
+        else{
+            amm = ammFactory.newPool(senior, junior); 
+
+            // set initial price to 1, liq to 0 
+            SpotPool(amm).setPriceAndPoint(uint256(1e18)); 
+            SpotPool(amm).setLiquidity0(); 
+        }
 
         contracts.splitter = splitter;
         contracts.amm = amm; 
@@ -149,6 +163,8 @@ contract TrancheFactory{
     function createLendingPools(uint256 vaultId) external{
         (address cSenior, address cJunior) = lendTokenFactory.deployNewCTokens(); 
         Contracts storage contracts = vaultContracts[vaultId]; 
+        require(contracts.splitter != address(0), "incorrect vaultId"); 
+
         contracts.cSenior = cSenior; 
         contracts.cJunior = cJunior; 
         (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
@@ -158,6 +174,13 @@ contract TrancheFactory{
         Comptroller(contracts.lendingPool)._setPriceOracle(newOracle); 
         Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cSenior), 1e18*8/10) ;       
         Comptroller(contracts.lendingPool)._setCollateralFactor(CToken(cJunior),  1e18*8/10);  
+    }
+
+    function setExchangeRateOracle(uint256 vaultId, address newOracle, bool assetIsErc20) public {
+        Contracts storage contracts = vaultContracts[vaultId]; 
+        require(contracts.vault != address(0), "incorrect vaultId"); 
+
+        tVault(contracts.vault).setExchangeRateOracle(newOracle, assetIsErc20); 
     }
 
     function setUpCTokens(
@@ -196,7 +219,7 @@ contract TrancheFactory{
         LeverageModule(cJunior).setPair(cSenior); 
     }
 
-  
+ 
     /// @notice called right after deployed 
     function setTrancheMaster(address _tMasterAd) external {
         require(msg.sender == owner); 
@@ -237,6 +260,9 @@ contract TrancheFactory{
     function getCJunior(uint vaultId) external view returns(CErc20){
         return CErc20(vaultContracts[vaultId].cJunior); 
     }
+    function getOracle(uint vaultId) external view returns(address){
+        return tVault(vaultContracts[vaultId].vault).totalAssetOracle(); 
+    }
 }
 
 
@@ -259,13 +285,31 @@ contract TrancheAMMFactory{
     }
 } 
 
+contract OracleAMMFactory{
+    address base_factory; 
+
+    mapping(address=>bool) _isPool; 
+    constructor(){
+        base_factory = msg.sender; 
+    }
+
+    function newPool(address baseToken, address tradeToken, address asset, address splitter, address tvault) external returns(address){
+        OracleJSPool newAMM= new OracleJSPool( baseToken, tradeToken,asset, splitter, tvault );
+        _isPool[address(newAMM)] = true; 
+        return address(newAMM); 
+    }
+
+    function isPool(address pooladd) public view returns(bool){
+        return _isPool[pooladd]; 
+    }
+}
+
 contract SplitterFactory{
 
     function newSplitter(tVault newvault, uint vaultId, address tMasterAd) external returns(address){
         Splitter splitter = new Splitter(newvault, vaultId, tMasterAd); 
         return address(splitter); 
     }
-
 }
 
 

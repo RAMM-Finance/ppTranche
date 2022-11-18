@@ -36,7 +36,8 @@ contract Splitter{
   /// @dev in discrete representations, so 1 means 1 hour 
   uint256 public elapsedTime; 
   uint256 public lastRecordTime; 
-  uint256 inceptionPrice; 
+  uint256 public inceptionPrice; 
+  uint256 public inceptionTime; 
   bool delayedOracle;
   uint256 public constant pastNBlock = 10; 
   uint256 internalPsu;
@@ -57,8 +58,9 @@ contract Splitter{
     underlying = _underlying; 
 
     junior_weight = underlying.getJuniorWeight(); 
-    promised_return = underlying.getPromisedReturn(); 
+    promised_return = precision + ((underlying.getPromisedReturn()-precision)/uint256(31536000)); 
     inceptionPrice = underlying.inceptionPrice(); 
+    inceptionTime = underlying.inceptionTime(); 
     vaultId = _vaultId; 
     trancheMasterAd = _trancheMasterAd; 
 
@@ -125,7 +127,7 @@ contract Splitter{
       uint256 juniorSupply = junior.totalSupply(); 
 
       // Artificially change the senior price and reset elapsed time  
-      inceptionPrice = underlying.totalAssets() - (juniorSupply + mintAmount).mulWadDown(pju);
+      inceptionPrice = underlying.totalAssetsOracle() - (juniorSupply + mintAmount).mulWadDown(pju);
       elapsedTime = 0; 
 
       junior_weight = juniorSupply.divWadDown(senior.totalSupply() + juniorSupply); 
@@ -137,7 +139,8 @@ contract Splitter{
   function computeValuePricesView() public view returns(uint256 psu, uint256 pju, uint256 pjs){
 
     // Get senior redemption price that increments per unit time as usual 
-    uint256 srpPlusOne = inceptionPrice.mulWadDown((promised_return+baseR_f).rpow(elapsedTime, precision));
+    uint256 srpPlusOne = inceptionPrice.mulWadDown((promised_return+baseR_f)
+        .rpow(block.timestamp - inceptionTime, precision));
     uint256 totalAssetsHeld; 
     uint256 seniorSupply ;
     uint256 juniorSupply ; 
@@ -150,8 +153,8 @@ contract Splitter{
       uint256 underlyingSupply = underlying.totalSupply();
 
       // Assets held by senior and junior supply  
-      totalAssetsHeld = underlyingSupply==0? 0 : underlying.totalAssets()
-        .mulDivDown(seniorSupply+juniorSupply, underlying.totalSupply()+1); 
+      totalAssetsHeld = underlyingSupply==0? 0 : underlying.totalAssetsOracle()
+        .mulDivDown(seniorSupply+juniorSupply, underlyingSupply+1); 
     }
     // Use data from pastNBlock instead
     else{
@@ -163,7 +166,7 @@ contract Splitter{
 
     bool belowThreshold; 
 
-    if (seniorSupply == 0) return(0,0,0); 
+    if (seniorSupply == 0) return(srpPlusOne,srpPlusOne,precision); 
     
     // Check if all seniors can redeem
     if (totalAssetsHeld >= srpPlusOne.mulWadDown(seniorSupply))
@@ -192,7 +195,7 @@ contract Splitter{
   /// given the market price of js and supply and assets 
   function computeImpliedPrices(uint markPjs) public view returns(uint psu, uint pju){
 
-    psu = underlying.totalAssets().divWadDown(senior.totalSupply() 
+    psu = underlying.totalAssetsOracle().divWadDown(senior.totalSupply() 
           + markPjs.mulWadDown(junior.totalSupply()));
     pju = psu.mulWadDown(markPjs); 
   }
@@ -274,6 +277,8 @@ contract Splitter{
   function setBasePromisedReturn(uint256 newR_f) external{
     baseR_f = newR_f; 
   }
+
+
 
 }
 

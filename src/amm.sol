@@ -1184,15 +1184,16 @@ contract SpotPool is GranularBondingCurve{
     function getPosition(address who, uint16 pointLower, uint16 pointUpper) external view returns(Position.Info memory){
         return positions.get(who, pointLower, pointUpper); 
     }
-    function getLimitPosition(uint16 point, address recipient) external view returns(uint256, bool){
+    function getLimitPosition(uint16 point, address recipient) external view returns(uint256, bool, bool){
         Position.Info memory limitPosition= positions.get(recipient, point, point+1); 
         uint128 liq = limitPosition.bidLiq> 0? limitPosition.bidLiq: limitPosition.askLiq; 
         uint256 amount = limitPosition.bidLiq> 0? baseGivenLiquidity(
             pointToPrice(point+1), pointToPrice(point), liq) 
             : tradeGivenLiquidity(pointToPrice(point+1), pointToPrice(point), liq); 
         bool isAsk = limitPosition.askLiq > 0 ; 
+        console.log('limitPositions', limitPosition.askLiq, limitPosition.bidLiq); 
         bool isClaimAble = claimAble( point, isAsk,recipient ); 
-        return (amount, isClaimAble); 
+        return (amount, isClaimAble, isAsk); 
     }
 
     /// @notice only for logging purposes, change this into an nft or smth 

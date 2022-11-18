@@ -26,6 +26,7 @@ contract LeverageModule is CErc20Behalf{
     function setPair(address _pair) external{
         require(msg.sender == admin ); 
         pair = CErc20Behalf(_pair); 
+        pairAddress = _pair; 
     }
 
     function setTrancheMaster(address _master, bool isSenior) external{

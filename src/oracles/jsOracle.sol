@@ -16,7 +16,7 @@ contract PJSOracle is PriceOracle{
         pool = SpotPool(pool_);
 	}
 
-    /// @notice Trades outside boundary will revert, so can get instantaneous price 
+    /// @notice Trades outside boundary will revert, so safe to  get instantaneous price 
 	function getUnderlyingPrice(CToken token) override external view returns(uint){	
 		return pool.getCurPrice(); 
 	}

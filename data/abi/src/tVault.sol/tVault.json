@@ -30,7 +30,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "_time_to_maturity",
+            "name": "inceptionTime",
             "type": "uint256"
           },
           {
@@ -42,11 +42,31 @@
             "internalType": "uint256",
             "name": "inceptionPrice",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "oracleAMM",
+            "type": "bool"
           }
         ],
         "internalType": "struct TrancheFactory.InitParams",
         "name": "param",
         "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "_creator",
+        "type": "address"
+      },
+      {
+        "internalType": "string[]",
+        "name": "_names",
+        "type": "string[]"
+      },
+      {
+        "internalType": "string",
+        "name": "_descriptions",
+        "type": "string"
       }
     ],
     "stateMutability": "nonpayable",
@@ -258,6 +278,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "assetName",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -316,6 +349,19 @@
   },
   {
     "inputs": [],
+    "name": "creator",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "decimals",
     "outputs": [
       {
@@ -366,32 +412,12 @@
   },
   {
     "inputs": [],
-    "name": "exchange_rate_hook",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getCurrentRealReturn",
+    "name": "descriptions",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "string",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getInitialExchangeRates",
-    "outputs": [
-      {
-        "internalType": "uint256[]",
-        "name": "",
-        "type": "uint256[]"
+        "type": "string"
       }
     ],
     "stateMutability": "view",
@@ -405,6 +431,19 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getNames",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
       }
     ],
     "stateMutability": "view",
@@ -480,12 +519,31 @@
   },
   {
     "inputs": [],
-    "name": "isMatured",
+    "name": "inceptionTime",
     "outputs": [
       {
-        "internalType": "bool",
+        "internalType": "uint256",
         "name": "",
-        "type": "bool"
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "instruments",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -646,25 +704,31 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "nonces",
-    "outputs": [
-      {
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "name": "names",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
       }
     ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "oracle_freq",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "nonces",
     "outputs": [
       {
         "internalType": "uint256",
@@ -796,7 +860,39 @@
   },
   {
     "inputs": [],
+    "name": "promisedReturn",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "queryExchangeRateOracle",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "ratios",
     "outputs": [
       {
         "internalType": "uint256",
@@ -842,9 +938,14 @@
         "internalType": "address",
         "name": "newOracle",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "_assetIsErc20",
+        "type": "bool"
       }
     ],
-    "name": "setOracle",
+    "name": "setExchangeRateOracle",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -853,19 +954,6 @@
     "inputs": [],
     "name": "storeExchangeRate",
     "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "store_exchange_rate",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -898,6 +986,32 @@
   {
     "inputs": [],
     "name": "totalAssets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalAssetsERC4626",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalAssetsOracle",
     "outputs": [
       {
         "internalType": "uint256",
@@ -972,6 +1086,19 @@
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "underlyingName",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

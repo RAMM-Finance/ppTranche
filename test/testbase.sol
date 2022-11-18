@@ -11,6 +11,10 @@ import "../src/factories.sol";
 import "../src/compound/Comptroller.sol"; 
 import {SpotPool} from "../src/amm.sol"; 
 import {LeverageModule} from "../src/LeverageModule.sol"; 
+import {MockOracle, ETHCPIOracle} from "../src/oracles/chainlinkOracle.sol"; 
+import {testETH} from "../src/mocks/testTokens.sol"; 
+import {OracleJSPool} from "../src/oracleAMM.sol"; 
+
 contract testVault is ERC4626{
     constructor(ERC20 want)ERC4626( want,"a","a" ){
 
@@ -44,6 +48,7 @@ contract base is Test{
     uint256 constant precision = 1e18;  
     tLendingPoolDeployer lendingPoolFactory; 
     tLendTokenDeployer lendTokenFactory; 
+    OracleAMMFactory oracleAMMFactory; 
     address jonna;
     address jott; 
     address gatdang;
@@ -94,20 +99,22 @@ contract base is Test{
         TrancheAMMFactory ammFactory = new TrancheAMMFactory(); 
         lendingPoolFactory = new tLendingPoolDeployer(); 
         lendTokenFactory = new tLendTokenDeployer(); 
-
+        oracleAMMFactory = new OracleAMMFactory(); 
         tFactory = new TrancheFactory(
             address(this), 
             address(ammFactory), 
             address(splitterFactory), 
             address(lendingPoolFactory), 
-            address(lendTokenFactory)
+            address(lendTokenFactory), 
+            address(oracleAMMFactory)
         ); 
 
         want = new testErc(); 
         tmaster = new TrancheMaster(tFactory); 
 
         want.mint(address(this), precision*100000); 
-        createVault(); 
+        createVault();
+        //createERC20Vault(false);  
 
         mintAndSplit(20); 
 
@@ -146,10 +153,35 @@ contract base is Test{
         uint vaultId = tFactory.createVault(
             tFactory.createParams(address(want), instruments,ratios,(precision * 3)/10, 
                 1e18 + 1e16,100,
-            1, precision), 
+            1, precision, false), 
             names, "d" );  
         tFactory.createSplitterAndPool( vaultId) ;
         tFactory.createLendingPools( vaultId);
+    }
+    function createERC20Vault() public{
+        address[] memory instruments = new address[](1); 
+        instruments[0] =  address(want); 
+
+        uint256[] memory ratios = new uint256[](1); 
+        ratios[0] = precision; 
+
+        string[] memory names = new string[](2); 
+        names[0] = "stETH";
+        names[1] = "CPI"; 
+
+
+        tFactory.setTrancheMaster(address(tmaster)); 
+        uint vaultId = tFactory.createVault(
+            tFactory.createParams(address(want), instruments,ratios,(precision * 3)/10, 
+                1e18 + 1e16,100,
+            1, precision, true), 
+            names, "description" );  
+        tFactory.createSplitterAndPool( vaultId) ;
+        tFactory.createLendingPools( vaultId);
+
+        address neworacle = address(new MockOracle()); 
+
+        tFactory.setExchangeRateOracle(vaultId,  neworacle,true);  
     }
 
     function mintAndSplit(uint256 shares) public returns(uint256, uint256){
@@ -243,6 +275,14 @@ contract base is Test{
         ERC20(senior).approve(contracts.amm, type(uint256).max); 
         SpotPool(contracts.amm).makerTrade( true, amountInToBid, point); 
         }
+    }
+    function mintAndSplitVault(uint256 shares, address who, uint256 vaultId) public returns(uint256, uint256){
+        TrancheFactory.Contracts memory contracts = tFactory.getContracts(vaultId); 
+        want.approve(contracts.vault, type(uint256).max); 
+        shares = shares*precision; 
+        tVault(contracts.vault).mint(shares,who); 
+        tVault(contracts.vault).approve(contracts.splitter, type(uint256).max);
+        return Splitter(contracts.splitter).split(shares); 
     }
 
 }

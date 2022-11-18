@@ -25,6 +25,11 @@
         "internalType": "address",
         "name": "lendTokenFactory_address",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "oracleAMMFactory_address",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -72,7 +77,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "_time_to_maturity",
+        "name": "inceptionTime",
         "type": "uint256"
       },
       {
@@ -84,6 +89,11 @@
         "internalType": "uint256",
         "name": "inceptionPrice",
         "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "oracleAMM",
+        "type": "bool"
       }
     ],
     "name": "createParams",
@@ -117,7 +127,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "_time_to_maturity",
+            "name": "inceptionTime",
             "type": "uint256"
           },
           {
@@ -129,6 +139,11 @@
             "internalType": "uint256",
             "name": "inceptionPrice",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "oracleAMM",
+            "type": "bool"
           }
         ],
         "internalType": "struct TrancheFactory.InitParams",
@@ -183,7 +198,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "_time_to_maturity",
+            "name": "inceptionTime",
             "type": "uint256"
           },
           {
@@ -195,6 +210,11 @@
             "internalType": "uint256",
             "name": "inceptionPrice",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "oracleAMM",
+            "type": "bool"
           }
         ],
         "internalType": "struct TrancheFactory.InitParams",
@@ -374,7 +394,7 @@
               },
               {
                 "internalType": "uint256",
-                "name": "_time_to_maturity",
+                "name": "inceptionTime",
                 "type": "uint256"
               },
               {
@@ -386,6 +406,11 @@
                 "internalType": "uint256",
                 "name": "inceptionPrice",
                 "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "oracleAMM",
+                "type": "bool"
               }
             ],
             "internalType": "struct TrancheFactory.InitParams",
@@ -433,6 +458,25 @@
         "type": "uint256"
       }
     ],
+    "name": "getOracle",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
     "name": "getParams",
     "outputs": [
       {
@@ -464,7 +508,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "_time_to_maturity",
+            "name": "inceptionTime",
             "type": "uint256"
           },
           {
@@ -476,6 +520,11 @@
             "internalType": "uint256",
             "name": "inceptionPrice",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "oracleAMM",
+            "type": "bool"
           }
         ],
         "internalType": "struct TrancheFactory.InitParams",
@@ -576,6 +625,29 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "newOracle",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "assetIsErc20",
+        "type": "bool"
+      }
+    ],
+    "name": "setExchangeRateOracle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "_tMasterAd",
         "type": "address"
@@ -655,7 +727,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "_time_to_maturity",
+            "name": "inceptionTime",
             "type": "uint256"
           },
           {
@@ -667,6 +739,11 @@
             "internalType": "uint256",
             "name": "inceptionPrice",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "oracleAMM",
+            "type": "bool"
           }
         ],
         "internalType": "struct TrancheFactory.InitParams",

@@ -190,6 +190,11 @@
             "type": "address"
           },
           {
+            "internalType": "contract OracleJSPool",
+            "name": "oamm",
+            "type": "address"
+          },
+          {
             "internalType": "contract ERC20",
             "name": "want",
             "type": "address"
@@ -268,6 +273,26 @@
             "internalType": "uint256",
             "name": "juniorSupply",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "inRange",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pjs",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "curPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "oracleAMM",
+            "type": "bool"
           }
         ],
         "internalType": "struct TrancheMaster.SwapLocalvars",
@@ -293,75 +318,6 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bool",
-        "name": "senior",
-        "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "arbByPairRedeem",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bool",
-        "name": "fromJunior",
-        "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "priceLimit",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "vaultId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "fillQueue",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "amountIn",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountOut",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "freshTrancheNewOrder",
-    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -593,13 +549,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "leverageSwap",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -810,6 +759,42 @@
         "type": "uint256"
       },
       {
+        "internalType": "bool",
+        "name": "turnOn",
+        "type": "bool"
+      }
+    ],
+    "name": "setBoundRevert",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxDelta",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMaxDelta",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      },
+      {
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
@@ -851,20 +836,6 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "swapFromInstrument",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "swapFromTranche",
-    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

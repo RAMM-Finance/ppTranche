@@ -214,6 +214,32 @@
   },
   {
     "inputs": [],
+    "name": "inceptionPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "inceptionTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "junior",
     "outputs": [
       {
@@ -346,8 +372,14 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "setTokens",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "newR_f",
+        "type": "uint256"
+      }
+    ],
+    "name": "setBasePromisedReturn",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

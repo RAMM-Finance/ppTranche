@@ -80,7 +80,7 @@
               },
               {
                 "internalType": "uint256",
-                "name": "_time_to_maturity",
+                "name": "inceptionTime",
                 "type": "uint256"
               },
               {
@@ -92,6 +92,11 @@
                 "internalType": "uint256",
                 "name": "inceptionPrice",
                 "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "oracleAMM",
+                "type": "bool"
               }
             ],
             "internalType": "struct TrancheFactory.InitParams",
@@ -146,6 +151,11 @@
     ],
     "name": "getCurrentValuePrices",
     "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
       {
         "internalType": "uint256",
         "name": "",
@@ -299,7 +309,7 @@
               },
               {
                 "internalType": "uint256",
-                "name": "_time_to_maturity",
+                "name": "inceptionTime",
                 "type": "uint256"
               },
               {
@@ -311,6 +321,11 @@
                 "internalType": "uint256",
                 "name": "inceptionPrice",
                 "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "oracleAMM",
+                "type": "bool"
               }
             ],
             "internalType": "struct TrancheFactory.InitParams",
@@ -363,6 +378,11 @@
             "internalType": "bool",
             "name": "claimable",
             "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "isAsk",
+            "type": "bool"
           }
         ],
         "internalType": "struct tLens.UserLimitPositions[]",
@@ -388,6 +408,11 @@
     ],
     "name": "getPrices",
     "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
       {
         "internalType": "uint256",
         "name": "",
@@ -481,7 +506,72 @@
           },
           {
             "internalType": "uint256",
+            "name": "pvu",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
             "name": "curMarkPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "tVaultAd",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seniorAd",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "juniorAd",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "blocknumber",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "_creator",
+            "type": "address"
+          },
+          {
+            "internalType": "string[]",
+            "name": "_names",
+            "type": "string[]"
+          },
+          {
+            "internalType": "string",
+            "name": "_descriptions",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "isOracleAMM",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "oammAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ammValue",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ammJuniorBal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ammSeniorBal",
             "type": "uint256"
           }
         ],
@@ -562,7 +652,72 @@
           },
           {
             "internalType": "uint256",
+            "name": "pvu",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
             "name": "curMarkPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "tVaultAd",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "seniorAd",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "juniorAd",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "blocknumber",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "_creator",
+            "type": "address"
+          },
+          {
+            "internalType": "string[]",
+            "name": "_names",
+            "type": "string[]"
+          },
+          {
+            "internalType": "string",
+            "name": "_descriptions",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "isOracleAMM",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "oammAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ammValue",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ammJuniorBal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ammSeniorBal",
             "type": "uint256"
           }
         ],
@@ -698,11 +853,31 @@
                 "internalType": "bool",
                 "name": "claimable",
                 "type": "bool"
+              },
+              {
+                "internalType": "bool",
+                "name": "isAsk",
+                "type": "bool"
               }
             ],
             "internalType": "struct tLens.UserLimitPositions[]",
             "name": "limitPositions",
             "type": "tuple[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "UserLiquidityValue",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "UserLiquidityAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "UserTrancheValue",
+            "type": "uint256"
           }
         ],
         "internalType": "struct tLens.UserInfo",
@@ -757,7 +932,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "_time_to_maturity",
+            "name": "inceptionTime",
             "type": "uint256"
           },
           {
@@ -769,6 +944,11 @@
             "internalType": "uint256",
             "name": "inceptionPrice",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "oracleAMM",
+            "type": "bool"
           }
         ],
         "internalType": "struct TrancheFactory.InitParams",
