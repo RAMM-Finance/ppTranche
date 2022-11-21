@@ -189,7 +189,7 @@ contract tLens{
     TrancheFactory.Contracts memory contracts = TrancheFactory(tFactory_ad).getContracts(vaultId);
 
     (uint256 psu, uint256 pju, uint256 pjs, uint256 pvu) = getCurrentValuePrices( tFactory_ad, vaultId); 
-    uint256 curMarkPrice = getCurrentMarkPrice(tFactory_ad, vaultId); 
+    uint256 curMarkPrice = contracts.param.oracleAMM? 0: getCurrentMarkPrice(tFactory_ad, vaultId); 
 
     (address junior, address senior) = Splitter(contracts.splitter).getTrancheTokens(); 
     tVault vault = tVault(contracts.vault); 
@@ -293,27 +293,4 @@ contract tLens{
 
 }
 
-contract testErc is ERC20{
-    constructor()ERC20("testUSDC", "tUSDC", 18){}
-    function mint(address to, uint256 amount) public {
-        _mint(to, amount); 
-    }
-    function faucet() public{
-      uint256 amount = 1000* 1e18; 
-      mint(msg.sender,amount ); 
-    }
-}
-
-contract testVault is ERC4626{
-    constructor(address want)ERC4626( ERC20(want),"a","a" ){
-
-    }
-    function totalAssets() public view override returns(uint256){
-     return totalFloat();
-    }
-
-    function totalFloat() public view returns (uint256) {
-        return asset.balanceOf(address(this));
-    }
-}
 

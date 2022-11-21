@@ -28,7 +28,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -78,7 +78,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -118,7 +118,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -167,7 +167,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -210,7 +210,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -261,7 +261,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -278,7 +278,7 @@
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/splitter.sol": {
-      "lastModificationDate": 1668605283824,
+      "lastModificationDate": 1668963643026,
       "contentHash": "b804b6798183b19af536edb3c2563e1b",
       "sourceName": "src/splitter.sol",
       "solcConfig": {
@@ -304,7 +304,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -353,7 +353,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -393,7 +393,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -441,7 +441,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -482,7 +482,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -524,7 +524,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -564,7 +564,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -614,7 +614,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -657,7 +657,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -697,7 +697,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -748,7 +748,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -788,7 +788,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -828,7 +828,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -868,7 +868,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -908,7 +908,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -952,7 +952,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -992,7 +992,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1034,7 +1034,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1074,7 +1074,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1123,7 +1123,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1172,7 +1172,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1214,7 +1214,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1255,7 +1255,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1298,7 +1298,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1341,7 +1341,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1383,7 +1383,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1396,55 +1396,6 @@
       ],
       "artifacts": [
         "MultiRolesAuthority"
-      ]
-    },
-    "/Users/parkjeongwon/Desktop/supervault/src/compound/Lens/CompoundLens.sol": {
-      "lastModificationDate": 1666429035625,
-      "contentHash": "4655aca7c77620e57edfb52fe36a674a",
-      "sourceName": "src/compound/Lens/CompoundLens.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../CErc20.sol",
-        "../CToken.sol",
-        "../PriceOracle.sol",
-        "../EIP20Interface.sol",
-        "../Governance/GovernorAlpha.sol",
-        "../Governance/Comp.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.10"
-      ],
-      "artifacts": [
-        "CompoundLens",
-        "ComptrollerLensInterface",
-        "GovernorBravoInterface"
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/compound/Governance/GovernorAlpha.sol": {
@@ -1474,7 +1425,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1516,7 +1467,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1558,7 +1509,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1572,136 +1523,6 @@
       ],
       "artifacts": [
         "SimplePriceOracle"
-      ]
-    },
-    "/Users/parkjeongwon/Desktop/supervault/src/compound/CErc20Immutable.sol": {
-      "lastModificationDate": 1666429035630,
-      "contentHash": "7226d81b9147e377a755009c477abed4",
-      "sourceName": "src/compound/CErc20Immutable.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./CErc20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.10"
-      ],
-      "artifacts": [
-        "CErc20Immutable"
-      ]
-    },
-    "/Users/parkjeongwon/Desktop/supervault/src/compound/CErc20Delegate.sol": {
-      "lastModificationDate": 1666429035620,
-      "contentHash": "3da7113e09d32e9d943892d840cf7609",
-      "sourceName": "src/compound/CErc20Delegate.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./CErc20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.10"
-      ],
-      "artifacts": [
-        "CErc20Delegate"
-      ]
-    },
-    "/Users/parkjeongwon/Desktop/supervault/src/compound/CDaiDelegate.sol": {
-      "lastModificationDate": 1666429035620,
-      "contentHash": "4ad17bc8a041018e013534a4aede5e63",
-      "sourceName": "src/compound/CDaiDelegate.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./CErc20Delegate.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.10"
-      ],
-      "artifacts": [
-        "CDaiDelegate",
-        "DaiJoinLike",
-        "GemLike",
-        "PotLike",
-        "VatLike"
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/compound/ComptrollerG7.sol": {
@@ -1731,7 +1552,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1750,49 +1571,6 @@
       ],
       "artifacts": [
         "ComptrollerG7"
-      ]
-    },
-    "/Users/parkjeongwon/Desktop/supervault/src/compound/JumpRateModelV2.sol": {
-      "lastModificationDate": 1666429035624,
-      "contentHash": "a26c396fe92ca2ad0964f1eb7656303e",
-      "sourceName": "src/compound/JumpRateModelV2.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./BaseJumpRateModelV2.sol",
-        "./InterestRateModel.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.10"
-      ],
-      "artifacts": [
-        "JumpRateModelV2"
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/compound/BaseJumpRateModelV2.sol": {
@@ -1822,7 +1600,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1835,90 +1613,6 @@
       ],
       "artifacts": [
         "BaseJumpRateModelV2"
-      ]
-    },
-    "/Users/parkjeongwon/Desktop/supervault/src/compound/JumpRateModel.sol": {
-      "lastModificationDate": 1666429035623,
-      "contentHash": "d9d4cb3c64e2cf122c5dfe990e18644c",
-      "sourceName": "src/compound/JumpRateModel.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./InterestRateModel.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.10"
-      ],
-      "artifacts": [
-        "JumpRateModel"
-      ]
-    },
-    "/Users/parkjeongwon/Desktop/supervault/src/compound/CErc20Delegator.sol": {
-      "lastModificationDate": 1666429035619,
-      "contentHash": "7ef4d2ce7230ec395cef259d8a54d40b",
-      "sourceName": "src/compound/CErc20Delegator.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./CTokenInterfaces.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.10"
-      ],
-      "artifacts": [
-        "CErc20Delegator"
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/compound/CEther.sol": {
@@ -1948,7 +1642,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -1990,7 +1684,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2032,7 +1726,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2068,7 +1762,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2110,7 +1804,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2156,7 +1850,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2198,7 +1892,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2240,7 +1934,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2276,7 +1970,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2316,7 +2010,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2358,7 +2052,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2398,7 +2092,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2439,7 +2133,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2479,7 +2173,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2521,7 +2215,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2561,7 +2255,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2601,7 +2295,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2645,7 +2339,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2702,7 +2396,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2727,8 +2421,8 @@
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/tLens.sol": {
-      "lastModificationDate": 1668657088831,
-      "contentHash": "ef1ac28c926a45c542b20fd8444c2d74",
+      "lastModificationDate": 1669003234867,
+      "contentHash": "a03a9ea90770f0246993a91821ed4e50",
       "sourceName": "src/tLens.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -2753,7 +2447,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2777,9 +2471,7 @@
         "^0.8.9"
       ],
       "artifacts": [
-        "tLens",
-        "testErc",
-        "testVault"
+        "tLens"
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/vaults/utils/oz.sol": {
@@ -2809,7 +2501,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2852,7 +2544,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2870,8 +2562,8 @@
       ]
     },
     "/Users/parkjeongwon/Desktop/supervault/src/oracles/chainlinkOracle.sol": {
-      "lastModificationDate": 1668512896128,
-      "contentHash": "db76d29917144e124ac5b237e2b462d9",
+      "lastModificationDate": 1668790418528,
+      "contentHash": "39110f7622cbe1e39668752f6b47d1c9",
       "sourceName": "src/oracles/chainlinkOracle.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -2896,7 +2588,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2911,6 +2603,7 @@
       "artifacts": [
         "AggregatorV3Interface",
         "ETHCPIOracle",
+        "IERC20",
         "MockOracle",
         "iTruflationTester"
       ]
@@ -2942,7 +2635,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -2958,45 +2651,9 @@
         "testVault"
       ]
     },
-    "/Users/parkjeongwon/Desktop/supervault/src/oracles/CPI.sol": {
-      "lastModificationDate": 1668322358893,
-      "contentHash": "d41d8cd98f00b204e9800998ecf8427e",
-      "sourceName": "src/oracles/CPI.sol",
-      "solcConfig": {
-        "version": "0.8.10",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [],
-      "artifacts": []
-    },
     "/Users/parkjeongwon/Desktop/supervault/src/oracleAMM.sol": {
-      "lastModificationDate": 1668663872980,
-      "contentHash": "93347a5be361bff6bc84e0fa81eebe91",
+      "lastModificationDate": 1668963866472,
+      "contentHash": "cf8f08216cdedf161a86cdc4443b441f",
       "sourceName": "src/oracleAMM.sol",
       "solcConfig": {
         "version": "0.8.10",
@@ -3021,7 +2678,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363638363634333631313133"
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
             }
           }
         }
@@ -3040,6 +2697,50 @@
       ],
       "artifacts": [
         "OracleJSPool"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/supervault/src/oracles/fluxOracle.sol": {
+      "lastModificationDate": 1669002484024,
+      "contentHash": "26dddeb25d255d3cde97613c2b4c920a",
+      "sourceName": "src/oracles/fluxOracle.sol",
+      "solcConfig": {
+        "version": "0.8.10",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363639303033323336393933"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../vaults/utils/FixedPointMathLib.sol",
+        "lib/forge-std/src/console.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.10"
+      ],
+      "artifacts": [
+        "CLV3Interface",
+        "NEARUSD_Oracle"
       ]
     }
   }

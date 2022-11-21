@@ -30,6 +30,20 @@ contract OracleJSPool is ERC4626 {
     uint256 withdrawalFee; 
     uint256 public constant dust = 1; 
 
+    // Parameters: 
+    uint256 public optimalRatio; // optimal reserve ratio
+    uint256 public priceMultiplier; 
+    bool computeFromLeftOver; 
+    bool adjustPrice; 
+
+    // Curve that takes price multiplier as input to compute price penalization for 
+    // distorted reserve ratio 
+    enum PenalizationCurve{
+        xcube, 
+        sigmoid
+    }
+    PenalizationCurve public penCurve; 
+
     /// @notice asset is the volatile asset to split 
     constructor(
         address _baseToken, 
@@ -49,12 +63,31 @@ contract OracleJSPool is ERC4626 {
         vault = tVault(vault_address); 
 
         vault.approve(splitter_address, type(uint256).max); 
+
+        // Starting optimal reserve ratio for junior/senior is just splitting ratio  
+        uint256 jw = splitter.junior_weight(); 
+        optimalRatio = jw.divWadDown(precision-jw);
+
+        // Default curve is x**3 
+        penCurve = PenalizationCurve.xcube;  
     }
 
     /// @notice fees are in WAD, 1e17 means 10 percent 
     function setFees(uint256 _fees, uint256 _withdrawalFee) external {
         fees = _fees; 
         withdrawalFee = _withdrawalFee; 
+    }
+
+    function setOptimumRatio(uint256 _optimalRatio) external{
+        optimalRatio = _optimalRatio; 
+    } 
+
+    function setPriceMultiplier(uint256 _priceMultiplier) external{
+        priceMultiplier = _priceMultiplier; 
+    }
+
+    function setAdjustPrice() external{
+        adjustPrice = !adjustPrice; 
     }
 
     function getCurPrice() external returns(uint256){
@@ -91,7 +124,7 @@ contract OracleJSPool is ERC4626 {
         require(pjs != 0, "0 price");
 
         // Get penalized/subsidized prices to balance pool 
-        pjs = getAdjustedPrices(pjs); 
+        if(adjustPrice) pjs = getAdjustedPrices(pjs); 
 
         uint256 frontrunPenalty = getPenalty(amountIn); 
         amountOut  = toJunior? amountIn.divWadDown(pjs) : pjs.mulWadDown(amountIn); 
@@ -100,11 +133,6 @@ contract OracleJSPool is ERC4626 {
         handleBuys(recipient, amountOut, amountIn, toJunior);
     }
 
-    /// @notice gets prices that takes into account the balance of the pool
-    /// since it needs to incentivize there always be some liquidity on both sides  
-    function getAdjustedPrices(uint256 pjs) public view returns(uint256){
-        return pjs; //TODO
-    }
 
     /// @notice oracle frontrun penalty TODO
     function getPenalty(uint256 amountIn) public view returns(uint256){
@@ -195,8 +223,6 @@ contract OracleJSPool is ERC4626 {
         uint256 pSv; 
         uint256 ratio; 
     }
-    bool computeFromLeftOver; 
-
 
     /// @notice gets the reserves values denominated in asset 
     function totalAssets() public view override returns(uint256){
@@ -252,6 +278,18 @@ contract OracleJSPool is ERC4626 {
         vars.juniorBal = vars.seniorBal.mulWadDown(vars.ratio); 
 
         return (vars.seniorBal, vars.juniorBal);  
+    }
+
+    /// @notice gets prices that takes into account the balance of the pool
+    /// since it needs to incentivize there always be some liquidity on both sides
+    /// AND protect LPs  
+    function getAdjustedPrices(uint256 pjs) public view returns(uint256){
+        uint256 ratio = getCurrentReserveRatio(); 
+
+        if(penCurve == PenalizationCurve.xcube){ 
+            uint256 val = priceMultiplier.mulWadDown(ratio - optimalRatio); 
+            return pjs.divWadDown(val.mulWadDown(val).mulWadDown(val) + precision); 
+        }
     }
 
     /// @notice return the ratio of junior/senior reserves 
