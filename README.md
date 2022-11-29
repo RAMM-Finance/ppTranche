@@ -19,7 +19,6 @@ To run written tests, clone repo, install and initiate foundry and run
 forge test
 ```
 
-Whitepaper draft found here https://github.com/Debita-Protocol/docs/blob/main/Supertranche.pdf
-
+Whitepaper draft found here https://github.com/Debita-Protocol/docs/blob/main/Supertranche%20(1).pdf
 
 This project is licensed under the terms of the BSD 3-Clause license and uses a subsection of Compound Protocol codebase. 
